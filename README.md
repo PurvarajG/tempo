@@ -19,35 +19,54 @@
 
 <br>
 
-<img src="docs/media/banners/feature-plan.png" alt="Know what fits before you say yes. Every day shows how full it is, and Doem flags a day that is overbooked.">
+## Know what fits before you say yes
 
-<img src="docs/media/banners/feature-calendar.png" alt="Your week, blocked out. Drag tasks onto days and see planned time beside tracked time.">
+Most to-do apps let you pile twelve hours of work onto an eight-hour day and wish you luck. Doem gives every task an estimate and every day a capacity, so you can see the day is full before you agree to one more thing.
 
-<img src="docs/media/banners/feature-tracking.png" alt="See where the hours went. Time by day and project, and how far your estimates were off.">
+- **Every day shows how full it is.** Planned time adds up as you add tasks, and a day that's overbooked says so: *Over by 3h 31m*.
+- **Capture in a second, from any app.** Press Control+Option+Space, type `Call printer 20m tomorrow #project`, and the date, estimate and project fill themselves in.
+- **Commit to today.** Press `*` on the tasks that really matter and keep the rest for later.
 
-<img src="docs/media/banners/feature-wrap.png" alt="End the day with a clean slate. A two-minute wrap up of what got done, which estimates ran over and what is on for tomorrow.">
+<img src="docs/media/banners/feature-plan.png" alt="Know what fits before you say yes. The Next 7 days view, with a day flagged as over by 3 hours 31 minutes.">
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/media/banners/feature-claude.png" alt="Knows when Claude is waiting. Doem notifies you when a Claude Code session needs a reply."></td>
-    <td width="50%"><img src="docs/media/banners/feature-keys.png" alt="Never reach for the mouse. Single-key shortcuts and quick capture from any app."></td>
-  </tr>
-</table>
+## Your week, blocked out
+
+A list tells you what to do. A calendar tells you when. Doem puts both in one view, so a plan turns into actual hours in your week.
+
+- **Plans change. Drag them.** Move a task to another day and the week rebalances.
+- **See planned time beside tracked time.** Planned blocks are solid and tracked time is striped, so you can see where the day went to plan and where it didn't.
+- **Your iCloud calendar sits in the same view.** Meetings and tasks share one timeline. Doem can also publish its tasks as a feed that macOS Calendar subscribes to.
+
+<img src="docs/media/banners/feature-calendar.png" alt="Your week, blocked out. The week calendar with tasks and events side by side.">
+
+## See where the hours went
+
+Tracking time usually takes so much effort that people give up after a week. In Doem it takes one key: press S on a task to start the timer, and S again to stop it.
+
+- **The timer lives in the menu bar.** The running task and its time are always one glance away, with an optional nudge when nothing has been tracked for a while.
+- **Find out how good your guesses are.** Tracking compares what you planned with what you spent, by day and by project, and shows your plan accuracy.
+- **End the day with a clean slate.** A two-minute wrap-up shows what got done, which estimates ran over and what's on for tomorrow.
+
+<img src="docs/media/banners/feature-tracking.png" alt="See where the hours went. Time by day and project, with plan accuracy at 38 percent.">
+
+## Made for people who ship with Claude Code
+
+Doem watches your Claude Code sessions without changing them. When one stops to wait for your reply, you get a notification: *Claude is waiting in pricing-site*. Doem can then add that session to your day as a time block, so agent work shows up in your plan like any other task.
+
+## Never reach for the mouse
+
+Everything has a key. `J` and `K` to move, `X` to finish, `T` for tomorrow, `F` to start a focus session, `Cmd K` for everything else. Learn five keys and you'll fly through your list.
 
 ## And everything else you'd want
 
-- **Quick capture from any app.** Control+Option+Space opens a capture window. Type `Call printer 20m tomorrow #project` and it lands with the date, estimate and project filled in.
-- **Projects as boards.** Each project opens as a board with its own stages.
-- **Focus sessions.** Press F on any task to start one.
-- **A timer in the menu bar.** The running task and its time are always one glance away, with an optional nudge when nothing has been tracked for a while.
-- **Your iCloud calendar, in the same view.** Events sit beside your tasks, and Doem can publish its tasks as a feed that macOS Calendar subscribes to.
-- **Light and dark.** Both themes are designed from scratch, and an optional Dock badge counts today's tasks.
+- **Projects as boards**, each with its own stages.
+- **Light and dark themes**, each designed separately, plus an optional Dock badge that counts today's tasks.
 - **No account, no sign-up.** Open it and start. Everything is saved on your Mac.
 
 ## Get started
 
 1. **[Download Doem](https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg)** and drag it into Applications.
-2. The first time, right-click Doem and choose **Open**. You only do this once.
+2. The first time, right-click Doem and choose **Open**. You only need to do this once.
 
 <details>
 <summary>Requirements and first-launch help</summary>
@@ -93,6 +112,7 @@ Anywhere in the app:
 | Cmd N | New task |
 | Cmd Z | Undo |
 | Cmd 0 to 5 | Inbox, Today, Calendar, Tracking, Next 7 days, All tasks |
+| Cmd Shift E | Wrap up the day |
 
 </details>
 
