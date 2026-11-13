@@ -1,17 +1,35 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/doem/svg/doem-lockup-dark.svg">
-    <img src="brand/doem/svg/doem-lockup-light.svg" alt="doem" width="260">
-  </picture>
-</p>
-
-Doem is a Mac app that keeps your tasks, your calendar and your tracked time in one place, with all data stored locally on your computer.
-
-**[Download for Apple Silicon (.dmg)](https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg)**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banners/hero-dark.png">
+  <img src="docs/media/banners/hero-light.png" alt="doem. Do them. Seize the day. Tasks, calendar and tracked time in one Mac app.">
+</picture>
 
 <p align="center">
-  <img src="docs/media/today-light.png" alt="The Today view in Doem" width="900">
+  <a href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"><img src="https://img.shields.io/badge/Download-Apple%20Silicon%20.dmg-4a4ae8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Apple Silicon (.dmg)"></a>
 </p>
+
+<p align="center">
+  <a href="https://github.com/PurvarajG/doem/releases/latest"><img src="https://img.shields.io/github/v/release/PurvarajG/doem?style=flat-square&color=4a4ae8&label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-12%2B%20·%20arm64-141519?style=flat-square" alt="macOS 12 or later, Apple Silicon">
+  <img src="https://img.shields.io/badge/data-stays%20local-8a8bff?style=flat-square" alt="Data stays local">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-141519?style=flat-square" alt="MIT licence"></a>
+</p>
+
+<p align="center">
+Doem is a Mac app that keeps your tasks, your calendar and your tracked time in one place,<br>with all data stored locally on your computer.
+</p>
+
+<br>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/banners/feature-tasks.png" alt="Tasks: capture fast, plan the day"></td>
+    <td width="50%"><img src="docs/media/banners/feature-calendar.png" alt="Calendar: your tasks on the calendar"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/banners/feature-tracking.png" alt="Time tracking: see where the hours went"></td>
+    <td width="50%"><img src="docs/media/banners/feature-privacy.png" alt="Privacy: your data stays home"></td>
+  </tr>
+</table>
 
 ## What it does
 
@@ -55,6 +73,11 @@ If you used the app under its earlier name, Tempo, Doem moves your existing data
 
 ## Keyboard shortcuts
 
+<details>
+<summary><b>Show all shortcuts</b></summary>
+
+<br>
+
 In a task list:
 
 | Key | Action |
@@ -80,6 +103,8 @@ Anywhere in the app:
 | Cmd Z | Undo |
 | Cmd 0 to 5 | Inbox, Today, Calendar, Tracking, Next 7 days, All tasks |
 
+</details>
+
 ## Build from source
 
 Requires Node.js 22 and macOS.
@@ -95,15 +120,27 @@ Other useful scripts: `npm test` (unit and UI tests), `npm run typecheck`, `npm 
 
 ## Design documents
 
-The design documents for the v2 redesign are in [docs/design/v2/](docs/design/v2/). The release steps are in [docs/release-checklist.md](docs/release-checklist.md). Brand assets and usage notes are in [brand/doem/](brand/doem/START-HERE.md).
+The design documents for the v2 redesign are in [docs/design/v2/](docs/design/v2/). The release steps are in [docs/release-checklist.md](docs/release-checklist.md). Brand assets and usage notes are in [brand/doem/](brand/doem/START-HERE.md). The README banners are in [docs/media/banners/](docs/media/banners/).
 
 ## Screenshots
 
+<details>
+<summary><b>Full-size screenshots</b></summary>
+
+<br>
+
 | | |
 | --- | --- |
-| ![Today, dark](docs/media/today-dark.png) | ![Calendar](docs/media/calendar-light.png) |
-| ![Tracking](docs/media/tracking-light.png) | ![Project board](docs/media/project-board-light.png) |
+| ![Today, light](docs/media/today-light.png) | ![Today, dark](docs/media/today-dark.png) |
+| ![Calendar](docs/media/calendar-light.png) | ![Tracking](docs/media/tracking-light.png) |
+| ![Project board](docs/media/project-board-light.png) | |
+
+</details>
 
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+<br>
+
+<img src="docs/media/banners/footer.png" alt="Do them. Seize the day.">
