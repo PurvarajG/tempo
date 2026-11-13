@@ -1,80 +1,71 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banners/hero-dark.png">
-  <img src="docs/media/banners/hero-light.png" alt="doem. Do them. Seize the day. Tasks, calendar and tracked time in one Mac app.">
-</picture>
+<a href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/banners/hero-dark.png">
+    <img src="docs/media/banners/hero-light.png" alt="doem. Plan the day. Know where it went. Tasks, calendar and a timer in one window.">
+  </picture>
+</a>
 
 <p align="center">
-  <a href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"><img src="https://img.shields.io/badge/Download-Apple%20Silicon%20.dmg-4a4ae8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Apple Silicon (.dmg)"></a>
+  <a href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"><img src="https://img.shields.io/badge/Download%20for%20Mac-Free-4a4ae8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac, free"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/PurvarajG/doem/releases/latest"><img src="https://img.shields.io/github/v/release/PurvarajG/doem?style=flat-square&color=4a4ae8&label=release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-12%2B%20·%20arm64-141519?style=flat-square" alt="macOS 12 or later, Apple Silicon">
-  <img src="https://img.shields.io/badge/data-stays%20local-8a8bff?style=flat-square" alt="Data stays local">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-141519?style=flat-square" alt="MIT licence"></a>
+  <a href="https://github.com/PurvarajG/doem/releases/latest"><img src="https://img.shields.io/github/v/release/PurvarajG/doem?style=flat-square&color=4a4ae8&label=latest" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Apple%20Silicon-macOS%2012%2B-141519?style=flat-square" alt="Apple Silicon, macOS 12 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/open%20source-MIT-141519?style=flat-square" alt="Open source, MIT"></a>
 </p>
 
-<p align="center">
-Doem is a Mac app that keeps your tasks, your calendar and your tracked time in one place,<br>with all data stored locally on your computer.
-</p>
+<h3 align="center">Your to-do list doesn't know how long things take.<br>Your calendar doesn't know what you need to do.<br>Doem knows both.</h3>
 
 <br>
 
+<img src="docs/media/banners/feature-plan.png" alt="Know what fits before you say yes. Every day shows how full it is, and Doem flags a day that is overbooked.">
+
+<img src="docs/media/banners/feature-calendar.png" alt="Your week, blocked out. Drag tasks onto days and see planned time beside tracked time.">
+
+<img src="docs/media/banners/feature-tracking.png" alt="See where the hours went. Time by day and project, and how far your estimates were off.">
+
+<img src="docs/media/banners/feature-wrap.png" alt="End the day with a clean slate. A two-minute wrap up of what got done, which estimates ran over and what is on for tomorrow.">
+
 <table>
   <tr>
-    <td width="50%"><img src="docs/media/banners/feature-tasks.png" alt="Tasks: capture fast, plan the day"></td>
-    <td width="50%"><img src="docs/media/banners/feature-calendar.png" alt="Calendar: your tasks on the calendar"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/media/banners/feature-tracking.png" alt="Time tracking: see where the hours went"></td>
-    <td width="50%"><img src="docs/media/banners/feature-privacy.png" alt="Privacy: your data stays home"></td>
+    <td width="50%"><img src="docs/media/banners/feature-claude.png" alt="Knows when Claude is waiting. Doem notifies you when a Claude Code session needs a reply."></td>
+    <td width="50%"><img src="docs/media/banners/feature-keys.png" alt="Never reach for the mouse. Single-key shortcuts and quick capture from any app."></td>
   </tr>
 </table>
 
-## What it does
+## And everything else you'd want
 
-**Tasks.** Capture tasks into an Inbox, give them dates, estimates, subtasks and notes, and organise them into projects. Projects open as a board with stages. Task lists are keyboard driven (see Keyboard shortcuts). A quick-capture window opens from a global shortcut (Control+Option+Space by default, changeable in Settings).
+- **Quick capture from any app.** Control+Option+Space opens a capture window. Type `Call printer 20m tomorrow #project` and it lands with the date, estimate and project filled in.
+- **Projects as boards.** Each project opens as a board with its own stages.
+- **Focus sessions.** Press F on any task to start one.
+- **A timer in the menu bar.** The running task and its time are always one glance away, with an optional nudge when nothing has been tracked for a while.
+- **Your iCloud calendar, in the same view.** Events sit beside your tasks, and Doem can publish its tasks as a feed that macOS Calendar subscribes to.
+- **Light and dark.** Both themes are designed from scratch, and an optional Dock badge counts today's tasks.
+- **No account, no sign-up.** Open it and start. Everything is saved on your Mac.
 
-**Today and the week.** Today shows what you have committed to, what is up next, what carried over from earlier days, and what you finished. Next 7 days gives a week-planning grid. All tasks, Completed and Trash hold the rest.
+## Get started
 
-**Calendar.** Month, week and day views. Tasks can be dragged between days. Events from an iCloud calendar can be shown beside your tasks, and Doem can publish its own tasks as a calendar feed that macOS Calendar can subscribe to.
-
-**Time tracking.** Start and stop a timer on any task, or log activities against categories. The Tracking view shows time by day, by project and by category, with a day timeline where gaps can be filled in. A menu bar item shows the running timer. An optional nudge reminds you when nothing has been tracked for a set time.
-
-**Focus.** Start a focus session on a task from the keyboard.
-
-**End of day.** A wrap-up flow checks the day, triages the Inbox, reviews estimate misses and lets you commit tasks for tomorrow.
-
-**Claude Code awareness (optional).** When enabled in Settings, Doem reads Claude Code session files on your Mac, never changing them, to suggest time blocks and to tell you when a session is waiting.
-
-**Appearance.** Light and dark themes, and a Dock badge that shows today's task count (optional).
-
-## Privacy
-
-Doem stores everything in a local PGlite database inside the app's data folder on your Mac. There is no account, no sign-in and no analytics. The app's interface is served from a local web server bound to 127.0.0.1.
-
-The only network requests the app makes are:
-
-1. Once a day, a check for a newer version: a GET request to `api.github.com/repos/PurvarajG/doem/releases/latest`. It is made only by the packaged app, sends no data about you or your tasks, and only reports that a release exists.
-2. If you enter an Apple ID and an app-specific password in Settings, a connection to `caldav.icloud.com` to read your iCloud calendar events.
-
-The calendar feed that Doem publishes is served from 127.0.0.1 on your own Mac and does not leave it.
-
-## Install
-
-Doem is built for Apple Silicon Macs (arm64) only. It bundles Electron 43, which supports recent versions of macOS (macOS 12 or later); package.json does not set a separate minimum.
-
-1. Download the .dmg from the link above and drag Doem into Applications.
-2. Doem is not signed or notarized, so macOS blocks the first launch. Right-click Doem in Applications and choose Open, then choose Open in the dialog. If that option does not appear, open System Settings, go to Privacy & Security, find the message about Doem and choose Open Anyway.
-
-This is needed once. Later launches open normally.
-
-If you used the app under its earlier name, Tempo, Doem moves your existing data into its own folder on first launch.
-
-## Keyboard shortcuts
+1. **[Download Doem](https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg)** and drag it into Applications.
+2. The first time, right-click Doem and choose **Open**. You only do this once.
 
 <details>
-<summary><b>Show all shortcuts</b></summary>
+<summary>Requirements and first-launch help</summary>
+
+<br>
+
+Doem runs on Apple Silicon Macs (M1 and later) with macOS 12 or newer.
+
+The app is not yet signed with an Apple Developer certificate, so macOS asks before the first launch. Right-click Doem in Applications and choose Open, then choose Open in the dialog. If that option does not appear, open System Settings, go to Privacy & Security, find the message about Doem and choose Open Anyway. Later launches open normally.
+
+If you used the app under its earlier name, Tempo, Doem moves your existing data over on first launch.
+
+Doem keeps your data in a local database on your Mac. It contacts the internet only to check once a day for a new version (`api.github.com`), and to read your iCloud calendar if you connect one in Settings.
+
+</details>
+
+<details>
+<summary>Keyboard shortcuts</summary>
 
 <br>
 
@@ -105,7 +96,10 @@ Anywhere in the app:
 
 </details>
 
-## Build from source
+<details>
+<summary>Build from source</summary>
+
+<br>
 
 Requires Node.js 22 and macOS.
 
@@ -118,29 +112,12 @@ npm run electron:build # .dmg for Apple Silicon
 
 Other useful scripts: `npm test` (unit and UI tests), `npm run typecheck`, `npm run lint`. Set `PGLITE_DIR` to a folder of your choice to keep a development database apart from the app's own data.
 
-## Design documents
-
-The design documents for the v2 redesign are in [docs/design/v2/](docs/design/v2/). The release steps are in [docs/release-checklist.md](docs/release-checklist.md). Brand assets and usage notes are in [brand/doem/](brand/doem/START-HERE.md). The README banners are in [docs/media/banners/](docs/media/banners/).
-
-## Screenshots
-
-<details>
-<summary><b>Full-size screenshots</b></summary>
-
-<br>
-
-| | |
-| --- | --- |
-| ![Today, light](docs/media/today-light.png) | ![Today, dark](docs/media/today-dark.png) |
-| ![Calendar](docs/media/calendar-light.png) | ![Tracking](docs/media/tracking-light.png) |
-| ![Project board](docs/media/project-board-light.png) | |
+Design documents for the v2 redesign are in [docs/design/v2/](docs/design/v2/), release steps in [docs/release-checklist.md](docs/release-checklist.md), brand assets in [brand/doem/](brand/doem/START-HERE.md) and these README banners in [docs/media/banners/](docs/media/banners/).
 
 </details>
 
-## Licence
-
-MIT. See [LICENSE](LICENSE).
-
 <br>
 
-<img src="docs/media/banners/footer.png" alt="Do them. Seize the day.">
+<a href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"><img src="docs/media/banners/footer.png" alt="Your day, finally in one place. Download Doem, free for Apple Silicon Macs."></a>
+
+<p align="center"><sub>MIT licensed. See <a href="LICENSE">LICENSE</a>.</sub></p>
