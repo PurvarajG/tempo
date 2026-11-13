@@ -280,8 +280,11 @@ async function crashKill(inst, warnings, note) {
   const tree = instanceTree(inst);
   process.kill(inst.pid, "SIGKILL");
   await waitFor(() => inst.exited, 10000);
-  await sleep(2500);
-  const orphans = tree.filter((r) => isAlive(r.pid) && r.command.includes(" -p "));
+  // electron/child-bootstrap.js makes an orphaned server exit within about a
+  // second of losing its parent; allow 6 s before calling it a survivor.
+  const isServer = (r) => r.command.includes(" -p ");
+  await waitFor(() => !tree.some((r) => isServer(r) && isAlive(r.pid)), 6000);
+  const orphans = tree.filter((r) => isServer(r) && isAlive(r.pid));
   if (orphans.length) {
     warnings.push(`${note}: kill -9 of the main process left the Next server running (pid ${orphans.map((r) => r.pid).join(", ")}); it keeps the database open, so a relaunch would run a second server on the same data folder`);
   }

@@ -26,6 +26,7 @@ if (process.platform === "darwin") {
 // orphan left running this way silently corrupts the next launch's database
 // instead of merely failing to start. Polling ppid and exiting the moment
 // it becomes 1 bounds how long an orphan can live to one tick of this timer.
+// One second keeps that window shorter than a person can relaunch the app.
 setInterval(() => {
   if (process.ppid === 1) process.exit(0);
-}, 3000).unref();
+}, 1000).unref();

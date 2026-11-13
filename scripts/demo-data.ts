@@ -180,28 +180,23 @@ async function main() {
   type Spec = { task: true } | { cat: string; act?: string };
   const weekday: Array<[number, number, Spec]> = [
     [7 * 60 + 15, 45, { cat: "Health", act: "Exercise" }],
-    [8 * 60 + 30, 20, { cat: "Travel", act: "Commute" }],
     [9 * 60 + 10, 90, { task: true }],
     [10 * 60 + 50, 45, { cat: "Focus Work", act: "Meetings" }],
     [11 * 60 + 45, 70, { task: true }],
-    [13 * 60, 45, { cat: "Health", act: "Meals" }],
     [14 * 60, 100, { task: true }],
     [16 * 60 + 5, 30, { cat: "Focus Work", act: "Email" }],
     [16 * 60 + 45, 30, { cat: "Admin", act: "Planning" }],
-    [19 * 60, 90, { cat: "Personal", act: "Family" }],
   ];
   const weekend: Array<[number, number, Spec]> = [
     [9 * 60, 60, { cat: "Health", act: "Exercise" }],
-    [11 * 60, 90, { cat: "Personal", act: "Leisure" }],
-    [15 * 60, 120, { cat: "Personal", act: "Social" }],
   ];
   let segments = 0;
   let lastEndToday: Date | null = null;
   for (let offset = -6; offset <= 0; offset++) {
     const seed = (offset + 7) * 7;
-    const sleepStart = dayAt(offset - 1, 23, (seed * 3) % 25);
-    const sleepEnd = dayAt(offset, 6, 30 + (seed % 25));
-    const blocks: Array<{ start: Date; end: Date; spec: Spec | "sleep" }> = [{ start: sleepStart, end: sleepEnd, spec: "sleep" }];
+    // About 6h 30m tracked on a weekday and 1h on a weekend day: a believable
+    // working week. No sleep blocks, which made the Tracking totals read 13h a day.
+    const blocks: Array<{ start: Date; end: Date; spec: Spec }> = [];
     const isWeekend = [0, 6].includes(dayAt(offset).getDay());
     (isWeekend ? weekend : weekday).forEach(([startMin, mins, spec], i) => {
       const jitter = ((seed + i * 5) % 9);
@@ -212,12 +207,7 @@ async function main() {
     for (const b of blocks) {
       const limit = offset === 0 ? limitToday : now;
       if (b.end > limit) continue;
-      if (b.spec === "sleep") {
-        await store.addManualSegment({
-          startedAt: b.start.toISOString(), endedAt: b.end.toISOString(),
-          categoryId: cat("Sleep").id, activityId: act("Sleep", "Sleep").id,
-        });
-      } else if ("task" in b.spec) {
+      if ("task" in b.spec) {
         const task = workTasks[taskCursor++ % workTasks.length];
         await store.addManualSegment({ startedAt: b.start.toISOString(), endedAt: b.end.toISOString(), taskId: task.id });
       } else {
