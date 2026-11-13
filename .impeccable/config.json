@@ -35,6 +35,15 @@
         ],
         "createdAt": "2026-11-13T13:16:06.192Z",
         "reason": "Claude: tag, pill and kbd chips copy the shipped app's sizes from app/globals.css for a design reference"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "new release/new release animation/logo-morph-v2.html"
+        ],
+        "createdAt": "2026-11-13T18:20:46.709Z",
+        "reason": "Claude: hook measured text against #ffffff, but the page is single-theme dark (#07070A); #9A99A8 and #7D73FF both clear 4.5:1 on it"
       }
     ]
   }
