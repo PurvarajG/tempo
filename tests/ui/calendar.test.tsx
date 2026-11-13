@@ -32,9 +32,9 @@ describe("month calendar", () => {
     );
 
     // Every day is a labelled button, including the borrowed April days.
-    expect(await screen.findByRole("button", { name: /2026-03-01/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /2026-04-01/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "2026-03-10, 1 task" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Sun 1 Mar, / })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Wed 1 Apr, / })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tue 10 Mar, 1 task" })).toBeInTheDocument();
   });
 
   test("dragging a task marker to another date reschedules it and announces the move", async () => {
@@ -52,7 +52,7 @@ describe("month calendar", () => {
 
     const marker = (await screen.findByRole("button", { name: "Ship the board" }))
       .parentElement as HTMLElement;
-    const targetCell = screen.getByRole("button", { name: /2026-03-12/ })
+    const targetCell = screen.getByRole("button", { name: /^Thu 12 Mar, / })
       .parentElement as HTMLElement;
 
     const dataTransfer = {
@@ -81,7 +81,39 @@ describe("month calendar", () => {
         body: { scheduled: "2026-03-12" },
       }),
     );
-    expect(announcements).toContain("Ship the board moved to 2026-03-12.");
+    expect(announcements).toContain("Ship the board moved to Thu 12 Mar.");
+  });
+
+  test("a drop announces a readable date, never an ISO one, even across years", async () => {
+    const decTask = makeTask({ scheduled: "2026-12-10", title: "Ship the board" });
+    const announcements: string[] = [];
+    renderWorkspace(
+      <MonthGrid
+        days={monthGrid(2026, 11)}
+        todayISO="2026-12-10"
+        tasksByDate={new Map([["2026-12-10", [decTask]]])}
+        onSelectDay={() => {}}
+        onAnnounce={(m) => announcements.push(m)}
+      />,
+      emptyWorkspace({ tasks: [decTask], projects: [project] }),
+    );
+    const marker = (await screen.findByRole("button", { name: "Ship the board" }))
+      .parentElement as HTMLElement;
+    const targetCell = screen.getByRole("button", { name: /^1 Jan 2027, / })
+      .parentElement as HTMLElement;
+    const dataTransfer = { effectAllowed: "", setData: () => {}, getData: () => decTask.id };
+    const fire = async (node: HTMLElement, type: string) => {
+      node.dispatchEvent(
+        Object.assign(new Event(type, { bubbles: true, cancelable: true }), { dataTransfer }),
+      );
+      await waitFor(() => {});
+    };
+    await fire(marker, "dragstart");
+    await fire(targetCell, "dragover");
+    await fire(targetCell, "drop");
+    await waitFor(() => expect(announcements).toHaveLength(1));
+    expect(announcements[0]).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(announcements[0]).toMatch(/^Ship the board moved to (Fri 1 Jan|1 Jan 2027)\.$/);
   });
 });
 
@@ -114,7 +146,7 @@ describe("month calendar — complex tasks", () => {
       emptyWorkspace({ tasks: [spanTask], projects: [project] }),
     );
 
-    for (const label of [/2026-03-10/, /2026-03-11/, /2026-03-12/]) {
+    for (const label of [/^Tue 10 Mar, /, /^Wed 11 Mar, /, /^Thu 12 Mar, /]) {
       const button = await screen.findByRole("button", { name: label });
       expect(within(button.parentElement as HTMLElement).getByText("Write the report")).toBeInTheDocument();
     }
@@ -134,7 +166,7 @@ describe("month calendar — complex tasks", () => {
 
     const markers = await screen.findAllByRole("button", { name: "Write the report" });
     const marker = markers[0].parentElement as HTMLElement;
-    const targetCell = screen.getByRole("button", { name: /2026-03-15/ })
+    const targetCell = screen.getByRole("button", { name: /^Sun 15 Mar, / })
       .parentElement as HTMLElement;
 
     const dataTransfer = { effectAllowed: "", setData: () => {}, getData: () => spanTask.id };
@@ -244,7 +276,7 @@ describe("imported Apple Calendar events", () => {
   test("renders imported events alongside tasks, without drag or click affordances", async () => {
     renderWorkspace(
       <MonthGrid
-        days={monthGrid(2026, 2)}
+        days={monthGrid(2026, 2).slice(0, 35)}
         todayISO={TODAY}
         tasksByDate={tasksByDate()}
         externalByDate={externalByDate()}
@@ -268,7 +300,7 @@ describe("imported Apple Calendar events", () => {
     const selections: string[] = [];
     const { mock } = renderWorkspace(
       <MonthGrid
-        days={monthGrid(2026, 2)}
+        days={monthGrid(2026, 2).slice(0, 35)}
         todayISO={TODAY}
         tasksByDate={tasksByDate()}
         externalByDate={externalByDate()}
@@ -288,7 +320,7 @@ describe("imported Apple Calendar events", () => {
   test("the grid is unchanged when iCloud is not configured", async () => {
     renderWorkspace(
       <MonthGrid
-        days={monthGrid(2026, 2)}
+        days={monthGrid(2026, 2).slice(0, 35)}
         todayISO={TODAY}
         tasksByDate={tasksByDate()}
         onSelectDay={() => {}}
@@ -359,13 +391,13 @@ describe("week calendar — drag to reschedule", () => {
       emptyWorkspace({ tasks: [timedTask], projects: [project] }),
     );
 
-    const marker = (await screen.findByRole("button", { name: "Ship the board" }))
-      .parentElement as HTMLElement;
+    // The timed block is itself the draggable button (no wrapper element).
+    const marker = (await screen.findByRole("button", { name: /Ship the board/ })) as HTMLElement;
     // TODAY (2026-03-10) is a Tuesday in this week; drop on the Thursday two
-    // days later, still inside the same Sun–Sat week grid. Drop on the day
+    // days later, still inside the same Mon–Sun week grid. Drop on the day
     // HEADER, not the hour box, since that's the part FIX A restored as a
     // drop target.
-    const targetHeader = screen.getByRole("button", { name: "2026-03-12, 0 tasks" });
+    const targetHeader = screen.getByRole("button", { name: "Thu 12 Mar, 0 tasks" });
 
     const dataTransfer = { effectAllowed: "", setData: () => {}, getData: () => timedTask.id };
     const fire = async (node: HTMLElement, type: string) => {
@@ -386,7 +418,7 @@ describe("week calendar — drag to reschedule", () => {
         body: { scheduled: "2026-03-12" },
       }),
     );
-    expect(announcements).toContain("Ship the board moved to 2026-03-12.");
+    expect(announcements).toContain("Ship the board moved to Thu 12 Mar.");
   });
 
   test("dropping an untimed task marker on another day's untimed chip strip reschedules it", async () => {
@@ -403,14 +435,16 @@ describe("week calendar — drag to reschedule", () => {
       emptyWorkspace({ tasks: [untimedTask], projects: [project] }),
     );
 
-    const marker = (await screen.findByRole("button", { name: "Ship the board" }))
-      .parentElement as HTMLElement;
+    // The untimed chip is itself the draggable button; its parent is the
+    // all-day strip cell for Tuesday.
+    const marker = (await screen.findByRole("button", { name: "Ship the board" })) as HTMLElement;
     // The visually matching drop target for an untimed chip is another
-    // day's (empty) untimed chip strip, not the hour-gridded box below it.
-    const targetHeader = screen.getByRole("button", { name: "2026-03-12, 0 tasks" });
-    const targetColumn = targetHeader.parentElement as HTMLElement;
-    const targetChipStrip = targetColumn.querySelector(".min-h-6") as HTMLElement;
+    // day's (empty) all-day strip cell, not the hour-gridded column below it.
+    // Strip children: rail spacer, then Mon..Sun, so Thursday is index 4.
+    const strip = (marker.parentElement as HTMLElement).parentElement as HTMLElement;
+    const targetChipStrip = strip.children[4] as HTMLElement;
     expect(targetChipStrip).toBeTruthy();
+    expect(targetChipStrip.querySelector("button")).toBeNull();
 
     const dataTransfer = { effectAllowed: "", setData: () => {}, getData: () => untimedTask.id };
     const fire = async (node: HTMLElement, type: string) => {
@@ -431,7 +465,7 @@ describe("week calendar — drag to reschedule", () => {
         body: { scheduled: "2026-03-12" },
       }),
     );
-    expect(announcements).toContain("Ship the board moved to 2026-03-12.");
+    expect(announcements).toContain("Ship the board moved to Thu 12 Mar.");
   });
 });
 

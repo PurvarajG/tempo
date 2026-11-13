@@ -1,5 +1,6 @@
 import { handle, json } from "@/lib/api";
 import { store } from "@/lib/store";
+import { TODAY_CAP_OPTIONS } from "@/lib/types";
 import * as v from "@/lib/validate";
 
 export async function GET() {
@@ -22,6 +23,24 @@ export async function PATCH(request: Request) {
       ...(b.hiddenNavItems !== undefined
         ? { hiddenNavItems: v.stringList(b.hiddenNavItems, "hiddenNavItems") }
         : {}),
+      ...(b.todayCap !== undefined
+        ? {
+            todayCap: (() => {
+              const n = v.minutes(b.todayCap, "todayCap");
+              if (typeof b.todayCap !== "number" || !(TODAY_CAP_OPTIONS as readonly number[]).includes(n)) {
+                v.fail(`todayCap must be one of ${TODAY_CAP_OPTIONS.join(", ")}`);
+              }
+              return n as (typeof TODAY_CAP_OPTIONS)[number];
+            })(),
+          }
+        : {}),
+      ...(b.dockBadge !== undefined ? { dockBadge: v.oneOf(b.dockBadge, "dockBadge", ["today", "none"] as const) } : {}),
+      ...(b.captureShortcut !== undefined ? { captureShortcut: v.shortcut(b.captureShortcut, "captureShortcut") } : {}),
+      ...(b.nudgeMinutes !== undefined ? { nudgeMinutes: v.nullablePositiveInt(b.nudgeMinutes, "nudgeMinutes", 240) } : {}),
+      ...(b.wrapHour !== undefined ? { wrapHour: v.hour(b.wrapHour, "wrapHour") } : {}),
+      ...(b.weeklyResetDay !== undefined ? { weeklyResetDay: v.weekday(b.weeklyResetDay, "weeklyResetDay") } : {}),
+      ...(b.claudeAwareness !== undefined ? { claudeAwareness: v.bool(b.claudeAwareness, "claudeAwareness") } : {}),
+      ...(b.dateOrder !== undefined ? { dateOrder: v.oneOf(b.dateOrder, "dateOrder", ["dmy", "mdy"] as const) } : {}),
     });
   });
 }

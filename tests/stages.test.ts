@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { StageConflict } from "../lib/store/stages";
+import { withTransaction } from "../lib/db";
+import { moveTasksToStage, StageConflict, wipCount } from "../lib/store/stages";
 import { freshDb, type TestDb } from "./helpers/db";
 
 let db: TestDb;
@@ -117,4 +118,89 @@ test("board order stays dense across moves", async () => {
   assert.deepEqual(inColumn.map((t) => t.title), ["Third", "First", "Second"]);
   assert.deepEqual(inColumn.map((t) => t.boardOrder), [0, 1, 2]);
   assert.ok(first.id && second.id);
+});
+
+test("a column's wipLimit can be set, read back and cleared", async () => {
+  const { stages } = await project("Limits");
+  assert.equal(stages[1].wipLimit ?? null, null);
+
+  const set = await db.store.updateStage(stages[1].id, { wipLimit: 3 });
+  assert.equal(set?.wipLimit, 3);
+  const listed = (await db.store.listStages()).find((s) => s.id === stages[1].id);
+  assert.equal(listed?.wipLimit, 3);
+
+  // Setting a limit alongside a rename keeps both.
+  const both = await db.store.updateStage(stages[1].id, { name: "Doing", wipLimit: 2 });
+  assert.equal(both?.name, "Doing");
+  assert.equal(both?.wipLimit, 2);
+
+  const cleared = await db.store.updateStage(stages[1].id, { wipLimit: null });
+  assert.equal(cleared?.wipLimit ?? null, null);
+});
+
+test("an invalid wipLimit is rejected and nothing changes", async () => {
+  const { stages } = await project("Bad limits");
+  for (const bad of [0, -1, 1.5, Number.NaN]) {
+    await assert.rejects(() => db.store.updateStage(stages[1].id, { wipLimit: bad }));
+  }
+  const after = (await db.store.listStages()).find((s) => s.id === stages[1].id);
+  assert.equal(after?.wipLimit ?? null, null);
+});
+
+test("the limit is soft: a column can hold more cards than its limit", async () => {
+  const { project: p, stages } = await project("Soft");
+  await db.store.updateStage(stages[1].id, { wipLimit: 1 });
+  await task(p.id, "One", stages[1].id);
+  await task(p.id, "Two", stages[1].id);
+  const tasks = await db.store.allTasks();
+  assert.equal(wipCount(tasks, stages[1].id), 2);
+});
+
+test("removeStage stamps stage_entered_at on moved tasks only", async () => {
+  const { project: p, stages } = await project("Stamps");
+  const mover = await task(p.id, "Mover", stages[2].id);
+  const stayer = await task(p.id, "Stayer", stages[0].id);
+  const before = await db.store.allTasks();
+  const stayerBefore = before.find((t) => t.id === stayer.id)?.stageEnteredAt;
+  const moverBefore = before.find((t) => t.id === mover.id)?.stageEnteredAt;
+  await new Promise((r) => setTimeout(r, 20));
+
+  await db.store.removeStage(stages[2].id, stages[0].id);
+
+  const after = await db.store.allTasks();
+  const moverAfter = after.find((t) => t.id === mover.id);
+  assert.equal(moverAfter?.stageId, stages[0].id);
+  assert.ok(moverAfter?.stageEnteredAt);
+  if (moverBefore) assert.ok(moverAfter.stageEnteredAt > moverBefore);
+  assert.equal(after.find((t) => t.id === stayer.id)?.stageEnteredAt, stayerBefore);
+});
+
+test("moveTasksToStage stamps stage_entered_at only for tasks that change column", async () => {
+  const { project: p, stages } = await project("Bulk");
+  const a = await task(p.id, "A", stages[0].id);
+  const b = await task(p.id, "B", stages[1].id);
+  const bBefore = (await db.store.allTasks()).find((t) => t.id === b.id)?.stageEnteredAt;
+  await new Promise((r) => setTimeout(r, 20));
+
+  await withTransaction((tx) => moveTasksToStage(tx, stages[0].id, stages[1]));
+
+  const after = await db.store.allTasks();
+  const aAfter = after.find((t) => t.id === a.id);
+  assert.equal(aAfter?.stageId, stages[1].id);
+  assert.ok(aAfter?.stageEnteredAt);
+  assert.equal(after.find((t) => t.id === b.id)?.stageEnteredAt, bBefore);
+});
+
+test("wipCount counts only open tasks in the given stage", () => {
+  const tasks = [
+    { stageId: "a", status: "open" },
+    { stageId: "a", status: "open" },
+    { stageId: "a", status: "done" },
+    { stageId: "a", status: "trashed" },
+    { stageId: "b", status: "open" },
+    { status: "open" },
+  ];
+  assert.equal(wipCount(tasks, "a"), 2);
+  assert.equal(wipCount(tasks, "b"), 1);
+  assert.equal(wipCount(tasks, "zzz"), 0);
 });

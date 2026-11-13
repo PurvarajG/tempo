@@ -2,15 +2,19 @@
 
 import { useTasks } from "@/lib/store-context";
 import { WEEKDAY_LABELS, type CalendarDay } from "@/lib/calendar";
-import { externalEventLabel } from "@/lib/external-events-view";
+import { fmtDate } from "@/lib/format";
 import type { ExternalEvent } from "@/lib/icloud";
 import { projectColorVar, type Task } from "@/lib/types";
+import Card from "@/components/ui/Card";
 import { useDragReschedule } from "./useDragReschedule";
 
+const HAIRLINES = "shadow-[-1px_0_0_var(--color-line),0_-1px_0_var(--color-line)]";
+
 /**
- * The month itself. Dragging a marker to another date reschedules it; on touch
- * (and from the keyboard) the same move lives in the day panel as "Move date",
- * so the grid never becomes the only way to do it.
+ * The month itself, in the week calendar's language: one card, a Monday-first
+ * head, hairline cells and project-edged chips. Dragging a chip to another
+ * date reschedules it; on touch (and from the keyboard) the same move lives in
+ * the day panel as "Move date".
  */
 export default function MonthGrid({
   days,
@@ -36,63 +40,67 @@ export default function MonthGrid({
 
   const colorOf = (task: Task) => {
     const color = projects.find((p) => p.id === task.projectId)?.color;
-    return color ? projectColorVar(color) : "var(--color-muted-foreground)";
+    return color ? projectColorVar(color) : "var(--color-ink-3)";
   };
 
+  const rows = Math.max(1, Math.ceil(days.length / 7));
+  // Rows share the body's height, so a cell holds a fixed number of chips and
+  // the rest is the "+N more" line: 2 chips in a 5-week month, 1 in a 6-week one.
+  const cap = rows >= 6 ? 1 : 2;
+
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-px">
+    <Card clip className="flex min-h-0 flex-1 flex-col">
+      <div className="grid shrink-0 grid-cols-7 shadow-[0_1px_0_var(--color-line)]">
         {WEEKDAY_LABELS.map((label) => (
-          <div
-            key={label}
-            className="px-2 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
-          >
+          <div key={label} className="px-2 py-3 text-center text-meta text-ink-3">
             {label}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div data-month-body className="min-h-0 flex-1 overflow-hidden">
+      <div
+        className="grid h-full min-h-[34rem] grid-cols-7 shell:min-h-0"
+        style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
+      >
         {days.map((day) => {
           const dayTasks = tasksByDate.get(day.iso) ?? [];
           const dayExternal = externalByDate?.get(day.iso) ?? [];
           const isToday = day.iso === todayISO;
+          const hidden = Math.max(0, dayTasks.length + dayExternal.length - cap);
+          const tint =
+            overDate === day.iso ? "bg-accent-soft" : day.isWeekend ? "bg-sunk/50" : "";
 
           return (
             <div
               key={day.iso}
+              data-in-month={day.inMonth ? "true" : "false"}
               onDragOver={(e) => dragOver(e, day.iso)}
               onDragLeave={() => dragLeave(day.iso)}
               onDrop={(e) => drop(e, day.iso)}
-              className={`flex min-h-24 flex-col rounded-lg border p-1.5 transition-colors sm:min-h-28 ${
-                overDate === day.iso ? "border-accent bg-accent/10" : "border-border/60"
-              } ${day.isWeekend && !isToday ? "bg-muted/40" : ""} ${
-                day.inMonth ? "" : "opacity-45"
-              } ${isToday ? "border-accent/50 bg-accent/10" : ""}`}
+              className={`flex min-w-0 flex-col gap-0.5 overflow-hidden p-2 transition-colors ${HAIRLINES} ${tint} ${
+                day.inMonth ? "" : "opacity-50"
+              }`}
             >
               <button
                 onClick={() => onSelectDay(day.iso)}
-                aria-label={`${day.iso}, ${dayTasks.length} ${
+                aria-current={isToday ? "date" : undefined}
+                aria-label={`${fmtDate(day.iso, todayISO)}, ${dayTasks.length} ${
                   dayTasks.length === 1 ? "task" : "tasks"
                 }`}
-                className="flex items-baseline justify-between rounded px-0.5 py-0.5 text-left hover:bg-muted"
+                className="mb-1 flex w-fit items-center rounded-full text-left"
               >
                 <span
-                  className={`font-mono text-[11px] ${
-                    isToday ? "font-semibold text-accent" : "text-muted-foreground"
+                  className={`grid h-6 min-w-6 place-items-center rounded-full text-secondary font-medium ${
+                    isToday ? "bg-accent text-accent-ink" : day.inMonth ? "text-ink" : "text-ink-3"
                   }`}
                 >
                   {day.dayOfMonth}
                 </span>
-                {isToday && (
-                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-accent">
-                    Today
-                  </span>
-                )}
               </button>
 
-              <div className="mt-1 space-y-0.5">
-                {dayTasks.slice(0, 3).map((task) => (
+              <div className="flex min-h-0 min-w-0 flex-col gap-0.5">
+                {dayTasks.slice(0, cap).map((task) => (
                   <div
                     key={task.id}
                     draggable
@@ -103,51 +111,33 @@ export default function MonthGrid({
                     <button
                       onClick={() => openTask(task.id)}
                       title={task.title}
-                      className={`flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-tight hover:bg-muted ${
-                        task.status === "done" ? "text-muted-foreground line-through" : ""
-                      }`}
+                      style={{ ["--c" as string]: colorOf(task) }}
+                      className={`cal-ev is-flow is-short ${task.status === "done" ? "is-done" : ""}`}
                     >
-                      <span
-                        aria-hidden
-                        className="size-1.5 shrink-0 rounded-full"
-                        style={{ background: colorOf(task) }}
-                      />
-                      <span className="truncate">{task.title}</span>
+                      <span className="cal-ev-title">{task.title}</span>
                     </button>
                   </div>
                 ))}
 
-                {dayTasks.length > 3 && (
-                  <button
-                    onClick={() => onSelectDay(day.iso)}
-                    className="px-1 font-mono text-[9px] text-muted-foreground hover:text-foreground"
-                  >
-                    +{dayTasks.length - 3} more
-                  </button>
-                )}
-
-                {/*
-                  Imported events are outlined rather than filled, and are plain
-                  divs: not draggable, not clickable. They're reference material
-                  for planning, and nothing here can edit them in Apple Calendar.
-                */}
-                {dayExternal.slice(0, 2).map((event) => (
+                {/* Imported events are read-only divs: not draggable, not clickable. */}
+                {dayExternal.slice(0, Math.max(0, cap - dayTasks.length)).map((event) => (
                   <div
                     key={event.id}
                     data-external-event
-                    title={`${event.title} — ${externalEventLabel(event)} (Apple Calendar)`}
-                    className="flex items-center gap-1 rounded border border-dashed border-border px-1 py-0.5 text-[10px] leading-tight text-muted-foreground"
+                    title={`${event.title}, Apple Calendar`}
+                    style={{ ["--c" as string]: "var(--color-ink-3)" }}
+                    className="cal-ev is-flow is-short is-external"
                   >
-                    <span className="truncate">{event.title}</span>
+                    <span className="cal-ev-title">{event.title}</span>
                   </div>
                 ))}
 
-                {dayExternal.length > 2 && (
+                {hidden > 0 && (
                   <button
                     onClick={() => onSelectDay(day.iso)}
-                    className="px-1 font-mono text-[9px] text-muted-foreground hover:text-foreground"
+                    className="w-fit shrink-0 px-1 text-meta text-ink-3 hover:text-ink"
                   >
-                    +{dayExternal.length - 2} more from Apple Calendar
+                    +{hidden} more
                   </button>
                 )}
               </div>
@@ -155,6 +145,7 @@ export default function MonthGrid({
           );
         })}
       </div>
-    </div>
+      </div>
+    </Card>
   );
 }

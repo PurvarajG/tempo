@@ -49,7 +49,7 @@ export default function TaskPicker({
           const aToday = a.scheduled === today;
           const bToday = b.scheduled === today;
           if (aToday !== bToday) return aToday ? -1 : 1;
-          return b.scheduled.localeCompare(a.scheduled);
+          return (b.scheduled ?? "").localeCompare(a.scheduled ?? "");
         }),
     [tasks, today],
   );
@@ -108,10 +108,10 @@ export default function TaskPicker({
         // both it and this button would announce two "Task" comboboxes
         // controlling the same listbox at once.
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 truncate rounded-lg border border-border bg-card transition-colors hover:border-accent/30 ${
+        className={`flex items-center gap-2 truncate transition-colors ${
           size === "lg"
-            ? "min-h-12 w-full max-w-none px-4 py-3 text-[15px]"
-            : "min-h-11 max-w-64 px-3 py-2 text-sm sm:min-h-9"
+            ? "h-12 w-full max-w-none rounded-row bg-sunk px-4 text-body text-ink inset-ring-1 inset-ring-line-strong"
+            : "h-9 max-w-64 rounded-full px-3.5 text-secondary text-ink-2 inset-ring-1 inset-ring-line-2 hover:bg-sunk"
         }`}
       >
         {selected ? (
@@ -126,7 +126,7 @@ export default function TaskPicker({
             <span className="truncate">{selected.title}</span>
           </span>
         ) : (
-          <span className="text-muted-foreground">{placeholder}</span>
+          <span className="text-ink-3">{placeholder}</span>
         )}
       </button>
 
@@ -135,7 +135,7 @@ export default function TaskPicker({
           <div
             ref={menuRef}
             data-picker-menu
-            className="no-drag fixed z-50 rounded-lg border border-border bg-card py-1 shadow-lg"
+            className="no-drag fixed z-50 rounded-row bg-surface p-1 shadow-md ring-1 ring-line"
             style={{
               left: position?.left ?? -9999,
               width: position?.width ?? MIN_WIDTH,
@@ -143,6 +143,7 @@ export default function TaskPicker({
               ...(position?.placement === "above" ? { bottom: position.bottom } : { top: position?.top ?? 0 }),
             }}
           >
+            <div className="composer-frame mb-1 flex h-9 items-center rounded-tab bg-sunk px-3">
             <input
               autoFocus
               role="combobox"
@@ -154,8 +155,9 @@ export default function TaskPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search tasks…"
-              className="w-full border-b border-border bg-transparent px-3 py-2 text-sm outline-none"
+              className="w-full min-w-0 border-0 bg-transparent p-0 text-secondary text-ink placeholder:text-ink-3"
             />
+            </div>
             <div id={menuId} role="listbox" aria-label={label} className="max-h-64 overflow-y-auto">
               {showClear && (
                 <button
@@ -166,15 +168,15 @@ export default function TaskPicker({
                   aria-selected={false}
                   onMouseEnter={() => setActiveIndex(0)}
                   onClick={() => select(0)}
-                  className={`flex w-full items-center px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground ${
-                    activeIndex === 0 ? "bg-muted text-foreground" : ""
+                  className={`flex h-9 w-full items-center rounded-tab px-3 text-left text-secondary text-ink-2 hover:bg-sunk hover:text-ink ${
+                    activeIndex === 0 ? "bg-sunk text-ink" : ""
                   }`}
                 >
                   No task
                 </button>
               )}
               {filtered.length === 0 && (
-                <p className="px-3 py-2 text-sm text-muted-foreground">No open tasks match.</p>
+                <p className="flex h-9 items-center px-3 text-secondary text-ink-3">No open tasks match.</p>
               )}
               {filtered.map((task, i) => {
                 const index = showClear ? i + 1 : i;
@@ -191,8 +193,8 @@ export default function TaskPicker({
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => select(index)}
                     disabled={isCurrent}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-40 ${
-                      index === activeIndex ? "bg-muted" : ""
+                    className={`flex h-9 w-full items-center gap-2 rounded-tab px-3 text-left text-secondary text-ink hover:bg-sunk disabled:opacity-40 ${
+                      index === activeIndex ? "bg-sunk" : ""
                     }`}
                   >
                     {project && (
@@ -200,7 +202,7 @@ export default function TaskPicker({
                     )}
                     <span className="min-w-0 flex-1 truncate">{task.title}</span>
                     {task.scheduled === today && (
-                      <span className="shrink-0 text-xs text-muted-foreground">Today</span>
+                      <span className="shrink-0 text-meta text-ink-3">Today</span>
                     )}
                   </button>
                 );

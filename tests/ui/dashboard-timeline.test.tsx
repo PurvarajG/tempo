@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 import Today from "@/components/Today";
@@ -11,32 +11,41 @@ vi.mock("@/lib/useNow", () => ({
 }));
 
 describe("Today dashboard timeline", () => {
-  test("renders a seven-day span and changes it with the range control", async () => {
+  test("has no range slider and shows a single-day hour grid by default", () => {
     renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />);
 
-    expect(screen.getByText("7 days")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
-    expect(screen.getByText("1 day")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Timeline range")).not.toBeInTheDocument();
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+    expect(screen.getByTestId("hour-scale-timeline")).toBeInTheDocument();
+    expect(screen.getByText("Fri 14 Aug", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Open calendar for/ })).toHaveLength(1);
   });
 
-  test("keeps the slider track progress in sync with its selected snap point", () => {
+  test("Previous, Next and Today move the single-day window by one day", async () => {
     renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />);
 
-    const slider = screen.getByLabelText("Timeline range");
-    expect(slider).toHaveClass("timeline-range");
-    expect(slider).toHaveStyle({ "--range-progress": "66.66666666666666%" });
-
-    fireEvent.change(slider, { target: { value: "6" } });
-    expect(slider).toHaveStyle({ "--range-progress": "100%" });
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    expect(screen.getByRole("link", { name: "Open calendar for Thu 13 Aug" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(screen.getByRole("link", { name: "Open calendar for Fri 14 Aug" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
   });
 
-  test("moves by the selected span and links unused days to the calendar", async () => {
+  test("a multi-day span moves by that many days", async () => {
+    renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={7} />);
+
+    expect(screen.getByTestId("day-scale-timeline")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Next 7 days" }));
+    expect(screen.getByText("21 Aug to 27 Aug")).toBeInTheDocument();
+  });
+
+  test("moves by one day and links unused days to the calendar", async () => {
     renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />);
 
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
-    await userEvent.click(screen.getByRole("button", { name: "Next 1 day" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next day" }));
 
-    expect(screen.getByRole("link", { name: "Open calendar for 2026-08-15" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open calendar for Sat 15 Aug" })).toHaveAttribute(
       "href",
       "/calendar?date=2026-08-15",
     );
@@ -55,11 +64,11 @@ describe("Today dashboard timeline", () => {
     );
 
     await screen.findByRole("button", { name: "Time-boxed work" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
 
     expect(view.container.querySelector('[data-testid="timeline-bar"]')).toHaveStyle({
-      left: "14.285714285714285%",
-      width: "7.142857142857142%",
+      // Default waking hours 07:00 to 23:00 (16 hours): 10:00 is 3 hours in, one hour wide.
+      left: "18.75%",
+      width: "6.25%",
     });
   });
 
@@ -68,8 +77,7 @@ describe("Today dashboard timeline", () => {
     renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ tasks: [task] }));
 
     expect(await screen.findByRole("button", { name: "Plan the week" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
-    expect(screen.getByLabelText("Unscheduled tasks for 2026-08-14")).toBeInTheDocument();
+    expect(screen.getByLabelText("Unscheduled tasks for Fri 14 Aug")).toBeInTheDocument();
   });
 
   test("stacks tasks that share a time slot instead of overlapping them", async () => {
@@ -78,7 +86,6 @@ describe("Today dashboard timeline", () => {
     const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ tasks: [a, b] }));
 
     await screen.findByRole("button", { name: "Overlap A" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
 
     const bars = view.container.querySelectorAll<HTMLElement>('[data-testid="timeline-bar"]');
     expect(bars).toHaveLength(2);
@@ -93,9 +100,8 @@ describe("Today dashboard timeline", () => {
     renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ tasks: [a, b] }));
 
     await screen.findByRole("button", { name: "Chip A" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "0" } });
 
-    const strip = screen.getByLabelText("Unscheduled tasks for 2026-08-14");
+    const strip = screen.getByLabelText("Unscheduled tasks for Fri 14 Aug");
     for (const chip of strip.querySelectorAll('[data-testid="timeline-bar"]')) {
       expect(chip).not.toHaveClass("w-full");
     }
@@ -103,10 +109,9 @@ describe("Today dashboard timeline", () => {
 
   test("shows tasks whose project is not loaded yet instead of dropping them", async () => {
     const task = makeTask({ scheduled: "2026-08-14", projectId: "99999999-9999-4999-8999-999999999999", title: "Orphaned work" });
-    renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ tasks: [task] }));
+    renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ tasks: [task] }));
 
     await screen.findByRole("button", { name: "Orphaned work" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     expect(screen.getByTestId("day-scale-timeline")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Orphaned work" })).toBeInTheDocument();
   });
@@ -116,14 +121,13 @@ describe("Today dashboard timeline", () => {
     const task = makeTask({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", scheduled: "2026-08-14", projectId: project.id, title: "Ship timeline" });
     const view = renderWorkspace(
       <>
-        <DashboardTimeline todayISO="2026-08-14" />
+        <DashboardTimeline todayISO="2026-08-14" span={5} />
         <TaskPanel />
       </>,
       emptyWorkspace({ projects: [project], tasks: [task] }),
     );
 
     await screen.findByRole("button", { name: "Ship timeline" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     expect(screen.getByTestId("day-scale-timeline")).toBeInTheDocument();
     expect(screen.getByText("Website")).toBeInTheDocument();
 
@@ -142,12 +146,11 @@ describe("Today dashboard timeline", () => {
       title: "Write the report",
     });
     const view = renderWorkspace(
-      <DashboardTimeline todayISO="2026-08-14" />,
+      <DashboardTimeline todayISO="2026-08-14" span={5} />,
       emptyWorkspace({ projects: [project], tasks: [task] }),
     );
 
     await screen.findByRole("button", { name: "Write the report" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
 
     // Visible window is 2026-08-14..2026-08-18 (5 days); the range starts
     // 2026-08-12 (before the window) and ends 2026-08-20 (after it), so the
@@ -156,8 +159,10 @@ describe("Today dashboard timeline", () => {
     expect(bar).toHaveStyle({ left: "0%", width: "100%" });
   });
 
-  test("mounts Today in a bounded workspace with its timeline", () => {
+  test("mounts Today in a bounded workspace with its timeline", async () => {
     const { container } = renderWorkspace(<Today />);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Day" }));
 
     const primaryPane = container.querySelector<HTMLElement>('[data-testid="today-primary-pane"]');
     const timeline = container.querySelector<HTMLElement>('[data-testid="today-timeline"]');

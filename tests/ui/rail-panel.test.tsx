@@ -26,6 +26,16 @@ describe("RailPanel", () => {
     expect(onToggleCollapse).toHaveBeenCalledOnce();
   });
 
+  test("the toggle reports its state through aria-expanded and the Expand label", () => {
+    render(
+      <RailPanel title="Blocked" collapsed onToggleCollapse={() => {}}>
+        <p>Blocked list</p>
+      </RailPanel>,
+    );
+
+    expect(screen.getByRole("button", { name: "Expand Blocked" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("collapsed=true renders the disclosure header without the body", () => {
     render(
       <RailPanel title="Blocked" collapsed onToggleCollapse={() => {}}>

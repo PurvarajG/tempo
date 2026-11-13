@@ -1,53 +1,98 @@
 "use client";
 
+import { useCallback, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { TasksProvider } from "@/lib/store-context";
 import Sidebar from "./Sidebar";
+import TopBar from "./TopBar";
 import Reminders from "./Reminders";
 import TaskPanel from "./TaskPanel";
-import TimerStrip from "./TimerStrip";
 import TimerConflict from "./TimerConflict";
 import ErrorToast from "./ErrorToast";
+import UndoBar from "./ui/UndoBar";
 import DesktopBridge from "./DesktopBridge";
+import CommandPalette from "./CommandPalette";
+import KeyboardShortcuts from "./KeyboardShortcuts";
+import { readStoredKey } from "@/lib/storage-key";
+
+const KEY = "doem.sidebarCollapsed";
+const listeners = new Set<() => void>();
+
+function subscribe(notify: () => void) {
+  listeners.add(notify);
+  window.addEventListener("storage", notify);
+  return () => {
+    listeners.delete(notify);
+    window.removeEventListener("storage", notify);
+  };
+}
+
+function readCollapsed(): boolean {
+  try {
+    return readStoredKey(KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Sidebar collapse state, remembered in localStorage. Falls back to expanded. */
+export function useSidebarCollapsed(): [boolean, (next: boolean) => void] {
+  const collapsed = useSyncExternalStore(subscribe, readCollapsed, () => false);
+  const setCollapsed = useCallback((next: boolean) => {
+    try {
+      localStorage.setItem(KEY, next ? "1" : "0");
+    } catch {
+      // Storage unavailable: the change simply isn't remembered.
+    }
+    for (const notify of listeners) notify();
+  }, []);
+  return [collapsed, setCollapsed];
+}
 
 export default function AppChrome({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const pathname = usePathname();
+
+  // The capture window is the composer alone: no chrome, and no DesktopBridge
+  // or Reminders, which the main window already runs.
+  if (pathname === "/capture") return <TasksProvider>{children}</TasksProvider>;
+
   return (
     <TasksProvider>
-      <div className="flex min-h-dvh flex-row">
-        <Sidebar />
-        <main className="relative min-w-0 flex-1 bg-background">
-          {/* Absolutely positioned, not in flow: this h-9 band matches the
-              sidebar's pt-9 titlebar height. In the Electron app,
-              `-webkit-app-region: drag` is read into an annotated
-              draggable-rect list that the native NSView hit-tests BEFORE
-              the event ever reaches the renderer, so this band drags the
-              window regardless of `pointer-events-none` — that property
-              cannot and does not make it click-through there. Its actual
-              job is the plain web build, where there is no native drag
-              hit-test at all: without `pointer-events-none` this would be
-              an ordinary absolute strip eating every click and text
-              selection across the top 36px of every page. The ONLY thing
-              that carves a hole out of the Electron drag rect is a
-              later-painted element that itself declares `-webkit-app-
-              region: no-drag` — see globals.css. Every page header whose
-              content lands in this band must apply `.no-drag` to that
-              content. Most pages get this for free through
-              components/ui/PageShell.tsx, which wraps its `actions` slot in
-              `.no-drag` (see app/calendar/page.tsx and app/tracking/page.tsx
-              for callers); a page rendering its own header outside
-              PageShell must still add `.no-drag` by hand (see
-              components/SectionLabel.tsx for the non-interactive case). */}
-          <div className="drag-region pointer-events-none absolute inset-x-0 top-0 h-9" />
-          {children}
+      <div
+        data-part="window"
+        className="shell-glass relative flex min-h-dvh flex-row border border-win-edge bg-shell shell:h-dvh shell:overflow-hidden"
+      >
+        {/* Must come first in the DOM: in Electron the native drag rect is
+            carved only by later-painted `.no-drag` elements, so every control
+            inside this 36px band declares `.no-drag`. `pointer-events-none`
+            keeps the plain web build from losing clicks to this strip. */}
+        <div className="drag-region pointer-events-none absolute inset-x-0 top-0 h-9" />
+        {!collapsed && (
+          <Sidebar collapsed={false} onToggleCollapsed={() => setCollapsed(true)} />
+        )}
+        <main
+          data-part="main"
+          className={`flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel bg-surface shadow-sm ring-1 ring-line m-2 ${collapsed ? "" : "ml-0"}`}
+        >
+          <TopBar sidebarCollapsed={collapsed} onExpandSidebar={() => setCollapsed(false)} />
+          <div className="relative min-h-0 flex-1">
+            {children}
+            <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 flex flex-col items-center gap-2 px-4">
+              <ErrorToast />
+              <UndoBar />
+            </div>
+          </div>
         </main>
       </div>
       {/* Mounted once, above every surface: any list, board, or calendar can
           open the same task panel without routing away. */}
       <TaskPanel />
-      <TimerStrip />
       <TimerConflict />
-      <ErrorToast />
       <Reminders />
       <DesktopBridge />
+      <CommandPalette />
+      <KeyboardShortcuts />
     </TasksProvider>
   );
 }

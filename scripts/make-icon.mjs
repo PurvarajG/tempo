@@ -1,36 +1,32 @@
-// Builds build/icon.png + build/icon.icns for the Electron app from the
-// Tempo brand package in brand/icons.
+// Copies the Doem brand package (brand/doem/) into build/ for electron-builder:
 //
-// The PNGs are the design source of truth (see brand/tempo-mark.svg for the
-// vector mark); this script only assembles them into the .iconset matrix
-// macOS wants and hands that to iconutil. Run with `npm run electron:icon`.
-import { copyFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+//   brand/doem/macos/Doem.icns               -> build/icon.icns  (Dock, Finder)
+//   brand/doem/png/doem-app-1024.png         -> build/icon.png
+//   brand/doem/png/doem-mark-template-16.png -> build/trayTemplate.png     (menu bar, 1x)
+//   brand/doem/png/doem-mark-template-32.png -> build/trayTemplate@2x.png  (menu bar, 2x)
+//
+// brand/doem/ is the source of truth (see brand/doem/START-HERE.md); the .icns
+// and PNGs there are rendered from its SVGs. This script only copies them so
+// a pack never ships a stale icon. Run with `npm run electron:icon`.
+import { copyFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 
 const root = path.join(import.meta.dirname, "..");
-const icons = path.join(root, "brand", "icons");
+const brand = path.join(root, "brand", "doem");
 const buildDir = path.join(root, "build");
 mkdirSync(buildDir, { recursive: true });
 
-const source = (size) => {
-  const file = path.join(icons, `icon-${size}.png`);
-  if (!existsSync(file)) throw new Error(`Missing brand icon: ${file}`);
-  return file;
-};
+const copies = [
+  ["macos/Doem.icns", "icon.icns"],
+  ["png/doem-app-1024.png", "icon.png"],
+  ["png/doem-mark-template-16.png", "trayTemplate.png"],
+  ["png/doem-mark-template-32.png", "trayTemplate@2x.png"],
+];
 
-copyFileSync(source(1024), path.join(buildDir, "icon.png"));
-
-// iconutil wants an .iconset folder with the canonical size/@2x matrix, where
-// each @2x is just the next size up rendered at the same physical dimensions.
-const iconset = path.join(buildDir, "icon.iconset");
-rmSync(iconset, { recursive: true, force: true });
-mkdirSync(iconset);
-for (const size of [16, 32, 128, 256, 512]) {
-  copyFileSync(source(size), path.join(iconset, `icon_${size}x${size}.png`));
-  copyFileSync(source(size * 2), path.join(iconset, `icon_${size}x${size}@2x.png`));
+for (const [from, to] of copies) {
+  const src = path.join(brand, from);
+  if (!existsSync(src)) throw new Error(`Missing brand asset: ${src}`);
+  copyFileSync(src, path.join(buildDir, to));
 }
-execFileSync("iconutil", ["-c", "icns", iconset, "-o", path.join(buildDir, "icon.icns")]);
-rmSync(iconset, { recursive: true, force: true });
 
-console.log("Wrote build/icon.png and build/icon.icns from brand/icons");
+console.log("Wrote build/icon.icns, build/icon.png and build/trayTemplate{,@2x}.png from brand/doem");

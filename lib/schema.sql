@@ -208,3 +208,53 @@ alter table tracking_settings add column if not exists hidden_nav_items text[] n
 -- from is_preset (which only marks eligibility). See backfill() in migrate.ts
 -- for the one-time pin given to existing installs.
 alter table activities add column if not exists pinned boolean not null default false;
+
+-- ---------------------------------------------------------------------------
+-- v2 data layer (Phase 4A)
+-- Additive and idempotent: every column is nullable or defaulted, nothing is
+-- dropped, and the whole section is safe to run twice on a populated v0.1.3
+-- database.
+-- ---------------------------------------------------------------------------
+
+-- A task with no date is an inbox item. tasks.scheduled is made nullable by
+-- the guarded relax step in lib/migrate.ts, not here.
+create index if not exists tasks_inbox_idx on tasks (created_at) where scheduled is null;
+
+-- Committed day (today list), hidden-until, expiry, and when the task entered
+-- its current stage (backfilled from created_at in lib/migrate.ts).
+alter table tasks add column if not exists committed_on date;
+alter table tasks add column if not exists start_on date;
+alter table tasks add column if not exists expires_on date;
+alter table tasks add column if not exists stage_entered_at timestamptz;
+
+-- "blocker_id blocks blocked_id". Deleting either task removes the link.
+create table if not exists task_links (
+  blocker_id uuid references tasks(id) on delete cascade,
+  blocked_id uuid references tasks(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id)
+);
+create index if not exists task_links_blocked_idx on task_links (blocked_id);
+
+-- Per-column work-in-progress limit; null = no limit.
+alter table project_stages add column if not exists wip_limit integer;
+
+-- End-of-day review: energy and a short note, one row per day.
+create table if not exists day_reviews (
+  day date primary key,
+  energy smallint,
+  note text,
+  updated_at timestamptz not null default now()
+);
+
+alter table tracking_settings add column if not exists today_cap integer not null default 3;
+alter table tracking_settings add column if not exists dock_badge text not null default 'today';
+alter table tracking_settings add column if not exists capture_shortcut text not null default 'Control+Alt+Space';
+-- null = nudges off
+alter table tracking_settings add column if not exists nudge_minutes integer;
+alter table tracking_settings add column if not exists wrap_hour integer not null default 17;
+alter table tracking_settings add column if not exists weekly_reset_day integer not null default 0;
+alter table tracking_settings add column if not exists claude_awareness boolean not null default false;
+alter table tracking_settings add column if not exists date_order text not null default 'dmy';
+-- Whether the one-time quick_todos -> inbox copy has run (see migrate.ts).
+alter table tracking_settings add column if not exists quick_todos_migrated boolean not null default false;

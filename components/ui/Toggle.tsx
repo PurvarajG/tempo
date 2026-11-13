@@ -30,13 +30,13 @@ export default function Toggle({
       disabled={disabled}
       onClick={onChange}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-        on ? "bg-accent" : "bg-border"
+        on ? "bg-accent" : "bg-line-strong"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <span
         aria-hidden
-        className={`absolute top-0.5 size-4 rounded-full bg-card transition-all ${
-          on ? "left-[18px]" : "left-0.5"
+        className={`absolute top-0.5 size-4 rounded-full bg-surface shadow-sm transition-[left] duration-150 ease-out ${
+          on ? "left-4.5" : "left-0.5"
         }`}
       />
     </button>

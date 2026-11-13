@@ -8,10 +8,10 @@ const hookSource = readFileSync(path.join(import.meta.dirname, "../scripts/elect
 
 async function runAfterPack(platform: string) {
   const codesignCalls: unknown[][] = [];
-  const module = { exports: {} as { default?: (context: unknown) => Promise<void> } };
+  const mod = { exports: {} as { default?: (context: unknown) => Promise<void> } };
   vm.runInNewContext(hookSource, {
-    module,
-    exports: module.exports,
+    module: mod,
+    exports: mod.exports,
     console: { log() {} },
     require(id: string) {
       if (id === "node:fs") return { existsSync: () => false };
@@ -23,12 +23,12 @@ async function runAfterPack(platform: string) {
     },
   });
 
-  await module.exports.default!({
+  await mod.exports.default!({
     electronPlatformName: platform,
     appOutDir: "/tmp/package-output",
     packager: {
       projectDir: "/tmp/project-without-next-node-modules",
-      appInfo: { productFilename: "Tempo" },
+      appInfo: { productFilename: "Doem" },
     },
   });
   return JSON.parse(JSON.stringify(codesignCalls)) as unknown[][];
@@ -37,7 +37,7 @@ async function runAfterPack(platform: string) {
 test("afterPack seals every macOS app even when .next/node_modules is absent", async () => {
   const calls = await runAfterPack("darwin");
   assert.deepEqual(calls, [
-    ["codesign", ["--force", "--deep", "--sign", "-", "/tmp/package-output/Tempo.app"], { stdio: "inherit" }],
+    ["codesign", ["--force", "--deep", "--sign", "-", "/tmp/package-output/Doem.app"], { stdio: "inherit" }],
   ]);
 });
 

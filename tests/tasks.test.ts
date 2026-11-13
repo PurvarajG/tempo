@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { TaskInvariantError } from "../lib/store/tasks";
+import { randomUUID } from "node:crypto";
+import { addDays, toISODate } from "../lib/parse";
+import { CommitCapReached, TaskInvariantError } from "../lib/store/tasks";
 import { freshDb, type TestDb } from "./helpers/db";
 
 let db: TestDb;
@@ -71,16 +73,43 @@ test("completing a project task moves it to Done, and reopening brings it back",
 
 test("completing a recurring task creates the next occurrence in the open column", async () => {
   const { project, stages } = await db.store.addProject({ name: "Recurring" });
+  const start = addDays(toISODate(new Date()), 1);
   const t = await task({
     projectId: project.id,
-    scheduled: "2026-03-01",
+    scheduled: start,
     recurrence: { freq: "weekly", interval: 1 },
   });
 
   const result = await db.store.completeTask(t.id);
-  assert.equal(result?.next?.scheduled, "2026-03-08");
+  assert.equal(result?.next?.scheduled, addDays(start, 7));
   assert.equal(result?.next?.status, "open");
   assert.equal(result?.next?.stageId, stages[0].id);
+});
+
+test("a recurring task scheduled weeks ago rolls forward past today on the same cadence", async () => {
+  const today = toISODate(new Date());
+  const start = addDays(today, -45);
+  const t = await task({
+    scheduled: start,
+    recurrence: { freq: "weekly", interval: 1 },
+  });
+
+  const result = await db.store.completeTask(t.id);
+  const next = result?.next?.scheduled;
+  assert.ok(next && next > today, `next ${next} should be after ${today}`);
+  const gapDays = (Date.parse(next + "T00:00:00Z") - Date.parse(start + "T00:00:00Z")) / 86400000;
+  assert.equal(gapDays % 7, 0, "stays on the original weekday cadence");
+});
+
+test("a recurring task with from: done schedules the next one a week from today", async () => {
+  const today = toISODate(new Date());
+  const t = await task({
+    scheduled: addDays(today, -45),
+    recurrence: { freq: "weekly", interval: 1, from: "done" },
+  });
+
+  const result = await db.store.completeTask(t.id);
+  assert.equal(result?.next?.scheduled, addDays(today, 7));
 });
 
 test("a task with no project completes without needing a column", async () => {

@@ -155,3 +155,32 @@ test("gaps requires a valid date", async () => {
   assert.equal(res.status, 400);
 });
 
+
+test("split route cuts a segment in two at the given time", async () => {
+  const { POST: split } = await import("../app/api/segments/[id]/split/route");
+  const created = await POST(
+    req("/api/segments", body({ startedAt: "2026-04-05T09:00:00.000Z", endedAt: "2026-04-05T10:00:00.000Z", categoryId })),
+  );
+  const seg = await created.json();
+  const res = await split(req(`/api/segments/${seg.id}/split`, body({ at: "2026-04-05T09:30:00.000Z" })), idCtx(seg.id));
+  assert.equal(res.status, 200);
+  const { before, after } = await res.json();
+  assert.equal(before.endedAt, "2026-04-05T09:30:00.000Z");
+  assert.equal(after.startedAt, "2026-04-05T09:30:00.000Z");
+  assert.equal(after.endedAt, "2026-04-05T10:00:00.000Z");
+});
+
+test("split route: missing segment is 404, a point outside the range is 400", async () => {
+  const { POST: split } = await import("../app/api/segments/[id]/split/route");
+  const missing = "00000000-0000-4000-8000-000000000000";
+  assert.equal((await split(req(`/api/segments/${missing}/split`, body({ at: "2026-04-05T09:30:00.000Z" })), idCtx(missing))).status, 404);
+
+  const created = await POST(
+    req("/api/segments", body({ startedAt: "2026-04-06T09:00:00.000Z", endedAt: "2026-04-06T10:00:00.000Z", categoryId })),
+  );
+  const seg = await created.json();
+  const outside = await split(req(`/api/segments/${seg.id}/split`, body({ at: "2026-04-06T11:00:00.000Z" })), idCtx(seg.id));
+  assert.equal(outside.status, 400);
+  const bad = await split(req(`/api/segments/${seg.id}/split`, body({ at: "garbage" })), idCtx(seg.id));
+  assert.equal(bad.status, 400);
+});

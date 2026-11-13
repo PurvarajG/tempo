@@ -10,9 +10,21 @@ await Promise.all([
   mkdir(new URL("server/", dist), { recursive: true }),
 ]);
 
+await mkdir(new URL("fonts/", client), { recursive: true });
 await Promise.all(
-  ["index.html", "styles.css", "tempo-mark.svg"].map((file) =>
+  [
+    "index.html",
+    "styles.css",
+    "doem-mark.svg",
+    "doem-lockup-light.svg",
+    "doem-lockup-dark.svg",
+    "fonts/Geist-Variable.woff2",
+  ].map((file) =>
     cp(new URL(file, root), new URL(file, client)),
   ),
 );
+// Screenshots are added by a later step, so a missing media/ folder is fine.
+await cp(new URL("media/", root), new URL("media/", client), { recursive: true }).catch((error) => {
+  if (error.code !== "ENOENT") throw error;
+});
 await cp(new URL("worker/index.js", root), new URL("server/index.js", dist));

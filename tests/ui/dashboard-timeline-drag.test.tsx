@@ -45,14 +45,13 @@ describe("Today dashboard timeline — day-scale drag", () => {
     const task = makeTask({ scheduled: "2026-08-15", projectId: project.id, title: "Ship timeline" });
     const view = renderWorkspace(
       <>
-        <DashboardTimeline todayISO="2026-08-14" />
+        <DashboardTimeline todayISO="2026-08-14" span={5} />
         <TaskPanel />
       </>,
       emptyWorkspace({ projects: [project], tasks: [task] }),
     );
 
     await screen.findByRole("button", { name: "Ship timeline" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -67,14 +66,13 @@ describe("Today dashboard timeline — day-scale drag", () => {
     const task = makeTask({ scheduled: "2026-08-15", projectId: project.id, title: "Movable" });
     const view = renderWorkspace(
       <>
-        <DashboardTimeline todayISO="2026-08-14" />
+        <DashboardTimeline todayISO="2026-08-14" span={5} />
         <TaskPanel />
       </>,
       emptyWorkspace({ projects: [project], tasks: [task] }),
     );
 
     await screen.findByRole("button", { name: "Movable" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -89,10 +87,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
   test("dragging the right handle turns a single-day task into a complex span", async () => {
     const project = makeProject();
     const task = makeTask({ scheduled: "2026-08-15", projectId: project.id, title: "Grows" });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Grows" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -113,10 +110,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
       projectId: project.id,
       title: "Shrinks back",
     });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Shrinks back" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -137,10 +133,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
       projectId: project.id,
       title: "Left edge",
     });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Left edge" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -161,10 +156,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
       projectId: project.id,
       title: "Clamped",
     });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Clamped" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -185,10 +179,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
       projectId: project.id,
       title: "Off-screen span",
     });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Off-screen span" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
@@ -206,10 +199,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
   test("bars and handles opt out of native touch scrolling", async () => {
     const project = makeProject();
     const task = makeTask({ scheduled: "2026-08-15", projectId: project.id, title: "Touch target" });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Touch target" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;
     const [startHandle, endHandle] = handlesOf(bar);
@@ -221,10 +213,9 @@ describe("Today dashboard timeline — day-scale drag", () => {
   test("a touch-emulated drag commits the same as a mouse drag", async () => {
     const project = makeProject();
     const task = makeTask({ scheduled: "2026-08-15", projectId: project.id, title: "Touch move" });
-    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" />, emptyWorkspace({ projects: [project], tasks: [task] }));
+    const view = renderWorkspace(<DashboardTimeline todayISO="2026-08-14" span={5} />, emptyWorkspace({ projects: [project], tasks: [task] }));
 
     await screen.findByRole("button", { name: "Touch move" });
-    fireEvent.change(screen.getByLabelText("Timeline range"), { target: { value: "3" } });
     stubGrid(view.container);
 
     const bar = view.container.querySelector('[data-testid="timeline-bar"]')!;

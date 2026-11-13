@@ -10,7 +10,7 @@ function validDate(value: string | null): value is string {
 }
 
 /**
- * Unlike the export feed, this is an in-app request served only by Tempo's
+ * Unlike the export feed, this is an in-app request served only by Doem's
  * loopback-only desktop server, so it needs no separate URL token.
  *
  * It never 500s: a broken or unconfigured iCloud connection must not take the

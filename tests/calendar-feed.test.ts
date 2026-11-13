@@ -74,3 +74,21 @@ test("the feed is never cached by an intermediary", async () => {
   const response = await GET(request(`?token=${secret}`));
   assert.match(response.headers.get("cache-control") ?? "", /no-store/);
 });
+
+test("an undated task does not break the feed and is left out of it", async () => {
+  const undated = await db.store.addTask({
+    title: "Inbox thought",
+    scheduled: null,
+    minutes: 30,
+    priority: 0,
+  });
+
+  const response = await GET(request(`?token=${encodeURIComponent(secret)}`));
+  assert.equal(response.status, 200);
+
+  const body = await response.text();
+  assert.ok(body.startsWith("BEGIN:VCALENDAR\r\n"));
+  assert.ok(body.endsWith("END:VCALENDAR\r\n"));
+  assert.ok(!body.includes(undated.id));
+  assert.ok(!body.includes("Inbox thought"));
+});

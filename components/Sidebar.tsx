@@ -1,221 +1,230 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useTasks } from "@/lib/store-context";
-import { PROJECT_COLORS, projectColorVar } from "@/lib/types";
-import ThemeToggle from "./ThemeToggle";
-import TempoMark from "./TempoMark";
+import { useNow } from "@/lib/useNow";
+import { toISODate } from "@/lib/parse";
+import { inboxCount } from "@/lib/today";
+import { buildWeekPlan, weekMetrics } from "@/lib/week-capacity";
+import Icon, { type IconName } from "./ui/Icon";
+import IconButton from "./ui/IconButton";
+import DoemMark from "./DoemMark";
+import TimerStrip from "./TimerStrip";
+import ProfileMenu from "./sidebar/ProfileMenu";
+import ProjectTree from "./sidebar/ProjectTree";
+import {
+  GROUP_LABEL,
+  NAV_COUNT,
+  NAV_ROW,
+  NAV_ROW_ON,
+  NAV_ROW_REST,
+} from "./sidebar/nav-styles";
 
-export const NAV = [
-  { key: "today", label: "Today", href: "/" },
-  { key: "calendar", label: "Calendar", href: "/calendar" },
-  { key: "tracking", label: "Tracking", href: "/tracking" },
-  { key: "upcoming", label: "Next 7 Days", href: "/upcoming" },
-  { key: "all", label: "All Tasks", href: "/all" },
-  { key: "completed", label: "Completed", href: "/completed" },
-  { key: "trash", label: "Trash", href: "/trash" },
-  { key: "settings", label: "Settings", href: "/settings" },
+export interface NavItem {
+  key: string;
+  label: string;
+  href: string;
+  group: "main" | "more" | "footer";
+  icon?: IconName;
+}
+
+export const NAV: NavItem[] = [
+  { key: "today", label: "Today", href: "/", group: "main", icon: "today" },
+  { key: "inbox", label: "Inbox", href: "/inbox", group: "main", icon: "inbox" },
+  { key: "upcoming", label: "Next 7 days", href: "/upcoming", group: "main", icon: "up" },
+  { key: "calendar", label: "Calendar", href: "/calendar", group: "main", icon: "cal" },
+  { key: "tracking", label: "Tracking", href: "/tracking", group: "main", icon: "chart" },
+  { key: "all", label: "All tasks", href: "/all", group: "more", icon: "list" },
+  { key: "completed", label: "Completed", href: "/completed", group: "more", icon: "check" },
+  { key: "trash", label: "Trash", href: "/trash", group: "more", icon: "trash" },
+  { key: "settings", label: "Settings", href: "/settings", group: "footer" },
 ];
 
-/** The one nav entry that can never be hidden — without it there is no way to undo hiding. */
+/** The one nav entry that can never be hidden: without it there is no way to undo hiding. */
 export const UNHIDEABLE_NAV_KEY = "settings";
+
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div data-part="lbl-s" className={GROUP_LABEL}>
+      {children}
+    </div>
+  );
+}
+
+function Count({ n }: { n: number | null }) {
+  if (!n) return null;
+  return (
+    <span data-part="nav-count" aria-hidden="true" className={NAV_COUNT}>
+      {n}
+    </span>
+  );
+}
 
 function NavLinks() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { tasks, projects, addProject, deleteProject, settings } = useTasks();
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [q, setQ] = useState("");
+  const { tasks, settings } = useTasks();
+  const now = useNow();
+  const todayISO = now ? toISODate(now) : "";
 
-  const openCounts = new Map<string, number>();
-  for (const t of tasks) {
-    if (t.status !== "open" || !t.projectId) continue;
-    openCounts.set(t.projectId, (openCounts.get(t.projectId) ?? 0) + 1);
-  }
+  const todayCount = useMemo(
+    () =>
+      todayISO
+        ? tasks.filter((t) => t.status === "open" && t.scheduled && t.scheduled <= todayISO).length
+        : null,
+    [tasks, todayISO],
+  );
+  const weekCount = useMemo(
+    () =>
+      todayISO
+        ? weekMetrics(tasks, todayISO, buildWeekPlan(tasks, todayISO, settings)).taskCount
+        : null,
+    [tasks, todayISO, settings],
+  );
+  const inbox = useMemo(() => (todayISO ? inboxCount(tasks, todayISO) : null), [tasks, todayISO]);
+  const counts: Record<string, number | null> = { today: todayCount, inbox, upcoming: weekCount };
 
-  async function createProject() {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setAdding(false);
-      return;
-    }
-    const color = PROJECT_COLORS[projects.length % PROJECT_COLORS.length];
-    const project = await addProject(trimmed, color);
-    setName("");
-    setAdding(false);
-    router.push(`/projects/${project.id}`);
+  // settings is null before the first fetch: show the full nav rather than flashing an empty sidebar.
+  const visible = settings
+    ? NAV.filter((item) => !settings.hiddenNavItems.includes(item.key))
+    : NAV;
+  const main = visible.filter((i) => i.group === "main");
+  const more = visible.filter((i) => i.group === "more");
+
+  function renderItem(item: NavItem) {
+    const active = pathname === item.href;
+    return (
+      <Link
+        key={item.key}
+        href={item.href}
+        data-part="nav-row"
+        aria-current={active ? "page" : undefined}
+        className={`${NAV_ROW} ${active ? NAV_ROW_ON : NAV_ROW_REST}`}
+      >
+        {item.icon && <Icon name={item.icon} size={16} />}
+        <span className="truncate">{item.label}</span>
+        <Count n={counts[item.key] ?? null} />
+      </Link>
+    );
   }
 
   return (
-    <>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const trimmed = q.trim();
-          if (!trimmed) return;
-          router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-        }}
-        className="relative mb-6"
-      >
-        <svg
-          aria-hidden
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-nav-foreground/60"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input
-          id="tempo-sidebar-search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search"
-          className="no-drag h-8 w-full rounded-[11px] border-none bg-nav-hover pl-7 pr-3 text-sm text-nav-foreground outline-none placeholder:text-nav-foreground/50 focus-visible:ring-2 focus-visible:ring-nav-active/50"
-        />
-      </form>
+    <div className="flex flex-col gap-6">
+      {/* The primary group has no visible heading: under the brand row a
+          "Main" label read as the logo's tagline. The nav keeps its
+          accessible name. */}
+      {main.length > 0 && (
+        <nav aria-label="Main" className="flex flex-col gap-0.5">
+          {main.map(renderItem)}
+        </nav>
+      )}
 
-      <nav aria-label="Main" className="flex flex-col gap-0.5">
-        {/* settings is null before the first fetch — show the full nav rather than flashing an empty sidebar. */}
-        {(settings ? NAV.filter((item) => !settings.hiddenNavItems.includes(item.key)) : NAV).map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={`no-drag rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
-                active
-                  ? "bg-nav-active font-semibold text-white"
-                  : "font-medium text-nav-foreground hover:bg-nav-hover hover:text-white"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <ProjectTree />
 
-      <div className="mt-8">
-        <div className="no-drag flex items-center justify-between px-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-nav-foreground/70">
-            Projects
-          </span>
-          <button
-            onClick={() => setAdding(true)}
-            aria-label="New project"
-            className="flex size-5 items-center justify-center rounded text-nav-foreground hover:bg-nav-hover hover:text-white"
-          >
-            +
-          </button>
+      {more.length > 0 && (
+        <div>
+          <GroupLabel>More</GroupLabel>
+          <nav aria-label="More" className="flex flex-col gap-0.5">
+            {more.map(renderItem)}
+          </nav>
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div className="mt-2 flex flex-col gap-0.5">
-          {projects
-            .filter((p) => !p.archived)
-            .map((p) => {
-              const active = pathname === `/projects/${p.id}`;
-              return (
-                <div key={p.id} className="no-drag group relative flex items-center">
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className={`flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "bg-nav-active font-semibold text-white"
-                        : "font-medium text-nav-foreground hover:bg-nav-hover hover:text-white"
-                    }`}
-                  >
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ background: projectColorVar(p.color) }}
-                    />
-                    <span className="select-text truncate">{p.name}</span>
-                    {(openCounts.get(p.id) ?? 0) > 0 && (
-                      <span
-                        className={`ml-auto shrink-0 font-mono text-[10px] ${active ? "text-white/70" : "text-nav-foreground/70"}`}
-                      >
-                        {openCounts.get(p.id)}
-                      </span>
-                    )}
-                  </Link>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Delete "${p.name}"? Tasks move to no project.`)) {
-                        deleteProject(p.id);
-                      }
-                    }}
-                    aria-label={`Delete ${p.name}`}
-                    className="absolute right-1 hidden size-5 items-center justify-center rounded text-nav-foreground hover:bg-nav-hover hover:text-white group-hover:flex"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
+/** Height of the bottom fade, and the padding that lets the last row scroll clear of it. */
+const FADE_PX = 24;
 
-          {adding && (
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void createProject();
-                if (e.key === "Escape") {
-                  setAdding(false);
-                  setName("");
-                }
-              }}
-              onBlur={() => void createProject()}
-              placeholder="Project name"
-              className="no-drag mx-1 mt-1 h-8 rounded-lg border border-nav-hover bg-nav-hover px-2.5 text-sm text-white outline-none placeholder:text-nav-foreground/50 focus:border-nav-active/60"
-            />
-          )}
-        </div>
-      </div>
-    </>
+/**
+ * The nav scroll region. It ends above the foot (a sibling, never an overlay).
+ * The bottom fade is a mask on the region itself and only shows while more
+ * rows sit below the fold.
+ */
+function NavScroll({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
+  }, []);
+  useEffect(() => {
+    measure();
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [measure]);
+  const mask = `linear-gradient(to bottom, #000 calc(100% - ${FADE_PX}px), transparent)`;
+  return (
+    <div
+      ref={ref}
+      data-part="nav-scroll"
+      data-fade={more ? "end" : undefined}
+      onScroll={measure}
+      style={more ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+      className="pane-scroll -m-1 min-h-0 flex-1 overflow-y-auto p-1 pb-6"
+    >
+      {children}
+    </div>
   );
 }
 
 /**
- * A macOS source list: search, five smart views, projects, done. The window
- * has a 900px minWidth floor, well above the old `sm` breakpoint this used
- * to collapse at, so there is no narrower state left to design for.
+ * The source list (soft.html .side): brand, Main, Projects, More, then the
+ * foot with the timer card and the profile row. The window root carries the
+ * shell tint and glass, so the aside paints no background of its own.
  */
-export default function Sidebar() {
+export default function Sidebar({
+  onToggleCollapsed,
+}: {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}) {
+  // Desktop pt-14: the traffic lights (trafficLightPosition y 20, 14 tall)
+  // end at y 34, so the brand tile starts about 23px below them, matching
+  // the 24px gap between the tile and the first nav row.
   return (
-    <aside className="nav-rail flex w-56 shrink-0 flex-col bg-nav pb-10 text-nav-foreground">
-      {/* Full-width drag region: spans the h-9 titlebar band (`pt-9`)
-          across the whole row, so the window can be grabbed anywhere along
-          the sidebar's top, matching AppChrome's h-9 spacer convention.
-          The branding ROW itself carries `.no-drag` (not just its two
-          interactive children) so the row's live drag area is exactly the
-          `pt-9` band — without that, the gaps between the logo, wordmark,
-          and ThemeToggle would stay drag-live below the row's own y range,
-          silently dragging the window (or blocking scrim dismissal) when
-          clicked. The logo `Link` and `ThemeToggle` remain independently
-          clickable regardless, since `.no-drag` on the row already covers
-          them. */}
-      <div className="drag-region flex flex-col px-5 pt-9">
-        <div className="no-drag flex items-center justify-between px-1">
-          <Link href="/" className="flex items-center gap-2.5 text-white">
-            <TempoMark />
-            <span className="font-display text-lg">Tempo</span>
+    <aside
+      data-part="side"
+      className="flex w-66 shrink-0 flex-col gap-6 px-4 pb-4 pt-6 text-ink [[data-desktop]_&]:pt-14"
+    >
+      {/* The drag band clears the macOS traffic lights and lets the window be
+          grabbed along the sidebar's top; every control inside is `.no-drag`. */}
+      <div className="drag-region">
+        {/* pl-3 puts the tile's left edge on the sidebar's content column
+            (nav icons and group labels at 12px in). soft.html's 8px left
+            sat 4px proud of it. pr-2 keeps the collapse icon centred over
+            the Projects chevron. */}
+        <div data-part="brand" className="no-drag flex items-center gap-3 pl-3 pr-2 text-brand">
+          <Link href="/" aria-label="Doem home" className="flex items-center gap-3 text-ink">
+            <DoemMark className="size-8" />
+            <span>doem</span>
           </Link>
-          <div>
-            <ThemeToggle />
-          </div>
+          <span className="ml-auto text-ink-3">
+            <IconButton
+              icon="panel"
+              label="Collapse sidebar"
+              shape="tile"
+              onClick={onToggleCollapsed}
+            />
+          </span>
         </div>
       </div>
 
-      <div className="mt-10 flex-1 px-5">
+      {/* 4px gutter (negative margin plus equal padding) keeps the selected
+          row's ring from being clipped by the scroll pane. */}
+      <NavScroll>
         <NavLinks />
+      </NavScroll>
+
+      <div data-part="side-foot" className="no-drag mt-auto flex shrink-0 flex-col gap-3">
+        <TimerStrip variant="card" />
+        <ProfileMenu />
       </div>
     </aside>
   );

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTasks } from "@/lib/store-context";
-import { daysBetween } from "@/lib/parse";
+import { daysBetween, toISODate } from "@/lib/parse";
+import { fmtDate } from "@/lib/format";
 import { shiftDays } from "@/lib/summary";
 import type { Task } from "@/lib/types";
 
@@ -44,14 +45,14 @@ export function useDragReschedule(tasksByDate: Map<string, Task[]>, onAnnounce: 
     const task = [...tasksByDate.values()].flat().find((t) => t.id === dragTaskId);
     setDragTaskId(null);
     setOverDate(null);
-    if (!task || task.scheduled === iso) return;
+    if (!task || task.scheduled === null || task.scheduled === iso) return;
     if (task.isComplex && task.finishDate) {
       const delta = daysBetween(task.scheduled, iso);
       patchTask(task.id, { scheduled: iso, finishDate: shiftDays(task.finishDate, delta) });
     } else {
       patchTask(task.id, { scheduled: iso });
     }
-    onAnnounce(`${task.title} moved to ${iso}.`);
+    onAnnounce(`${task.title} moved to ${fmtDate(iso, toISODate(new Date()))}.`);
   }
 
   return { dragTaskId, overDate, startDrag, endDrag, dragOver, dragLeave, drop };

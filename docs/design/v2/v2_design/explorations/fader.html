@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en" data-scheme="aluminium" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tempo Fader</title>
+<meta name="description" content="The Fader direction for the Tempo v2 Today screen: the day as a machined fader beside today's task list, in aluminium or graphite, light and dark.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500&family=Figtree:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Ribbon (by request, the user picked Fader, Console layout)
+ * nav: machined top bar · signature: the day as a machined fader with a metal now handle · states: idle, running, moved with undo · ribbon: dawn and night, finish aluminium or graphite
+ * axes: light+dark/grotesk-sans/chromatic-teal · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P2 H2 E2 S2 R2 V2 · weakest: H, the date leads and the next task is the first row, so the row has to carry the focus */
+/* note: dark is warm graphite, not Ribbon's blue-black night, so both modes share one neutral; Ribbon's night amber is a lit teal here, the user ruled out orange; no glow anywhere */
+
+/* ---------- Scale ---------- */
+:root {
+  --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.375rem; --text-2xl: 1.75rem; --text-3xl: 2.25rem; --text-4xl: 3rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --dur-micro: 140ms; --dur-short: 260ms; --dur-long: 520ms;
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; --font-body: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --radius-part: 6px; --radius-bed: 14px; --radius-row: 16px; --radius-card: 20px;
+}
+
+/* ---------- Ground: dawn ---------- */
+:root {
+  --color-paper: oklch(97.6% 0.004 85); --color-paper-2: oklch(95.4% 0.005 85); --color-paper-3: oklch(92.4% 0.006 85);
+  --color-ink: oklch(18% 0.006 80); --color-ink-2: oklch(31% 0.008 80); --color-muted: oklch(46% 0.01 80);
+  --color-rule: oklch(88.5% 0.007 85);
+  --color-accent: oklch(44% 0.075 190); --color-accent-ink: oklch(98% 0.006 85); --color-accent-soft: oklch(84% 0.045 190); --color-accent-deep: oklch(38% 0.07 190);
+  --color-focus: oklch(50% 0.09 190);
+  --color-bed: oklch(87.5% 0.007 85); --color-slot: oklch(93% 0.005 85); --color-done: oklch(66% 0.01 80);
+  --edge-light: inset 0 1px 0 oklch(100% 0 0 / 0.65);
+  --bed-shadow: inset 0 2px 5px oklch(20% 0.01 80 / 0.18), inset 0 -1px 0 oklch(100% 0 0 / 0.55);
+  --slot-shadow: inset 0 1px 3px oklch(20% 0.01 80 / 0.28);
+  --shadow-part: 0 1px 0 oklch(20% 0.01 80 / 0.18), 0 6px 12px -4px oklch(20% 0.01 80 / 0.28);
+  --shadow-panel: 0 1px 0 oklch(20% 0.01 80 / 0.08), 0 12px 24px -12px oklch(20% 0.02 80 / 0.18), 0 40px 72px -32px oklch(20% 0.02 80 / 0.28);
+  --shadow-toast: 0 2px 4px oklch(20% 0.01 80 / 0.1), 0 16px 32px -12px oklch(20% 0.02 80 / 0.35);
+  --grain-opacity: 0.35;
+}
+/* ---------- Ground: night, warm graphite stepped in lightness (raised = lighter) ---------- */
+:root[data-mode="dark"] {
+  --color-paper: oklch(16.5% 0.004 85); --color-paper-2: oklch(23.5% 0.005 85); --color-paper-3: oklch(20.5% 0.005 85);
+  --color-ink: oklch(94% 0.006 85); --color-ink-2: oklch(85% 0.006 85); --color-muted: oklch(71% 0.008 85);
+  --color-rule: oklch(29% 0.005 85);
+  --color-accent: oklch(78% 0.085 190); --color-accent-ink: oklch(17% 0.03 200); --color-accent-soft: oklch(50% 0.065 190); --color-accent-deep: oklch(70% 0.08 190);
+  --color-focus: oklch(78% 0.085 190);
+  --color-bed: oklch(12.5% 0.004 85); --color-slot: oklch(9.5% 0.004 85); --color-done: oklch(58% 0.006 85);
+  --edge-light: inset 0 1px 0 oklch(100% 0 0 / 0.13);
+  --bed-shadow: inset 0 2px 6px oklch(0% 0 0 / 0.55), inset 0 -1px 0 oklch(100% 0 0 / 0.07);
+  --slot-shadow: inset 0 1px 3px oklch(0% 0 0 / 0.8), inset 0 -1px 0 oklch(100% 0 0 / 0.05);
+  --shadow-part: 0 0 0 1px oklch(0% 0 0 / 0.45), 0 6px 12px -4px oklch(0% 0 0 / 0.6);
+  --shadow-panel: 0 0 0 1px oklch(0% 0 0 / 0.5), 0 2px 4px oklch(0% 0 0 / 0.3), 0 32px 64px -24px oklch(0% 0 0 / 0.75);
+  --shadow-toast: 0 0 0 1px oklch(0% 0 0 / 0.4), 0 16px 32px -12px oklch(0% 0 0 / 0.7);
+  --grain-opacity: 0.1;
+}
+/* ---------- Finish: the metal the parts are cut from ---------- */
+:root[data-scheme="aluminium"] {
+  --metal-hi: oklch(97% 0.004 85); --metal-lo: oklch(83% 0.007 85); --metal-groove: oklch(70% 0.008 85); --metal-ink: oklch(22% 0.006 80);
+}
+:root[data-scheme="graphite"] {
+  --metal-hi: oklch(40% 0.008 255); --metal-lo: oklch(21% 0.01 255); --metal-groove: oklch(52% 0.008 255); --metal-ink: oklch(94% 0.006 85);
+}
+:root[data-scheme="aluminium"][data-mode="dark"] {
+  --metal-hi: oklch(82% 0.005 85); --metal-lo: oklch(60% 0.006 85); --metal-groove: oklch(42% 0.006 85); --metal-ink: oklch(16% 0.004 85);
+}
+:root[data-scheme="graphite"][data-mode="dark"] {
+  --metal-hi: oklch(47% 0.006 85); --metal-lo: oklch(29% 0.006 85); --metal-groove: oklch(40% 0.006 85); --metal-ink: oklch(95% 0.006 85);
+}
+/* ---------- Comparison chrome ---------- */
+:root { --chrome-bg: oklch(92% 0.003 85); --chrome-ink: oklch(25% 0.006 80); --chrome-on: oklch(99% 0.002 85); --chrome-rule: oklch(84% 0.004 85); }
+:root[data-mode="dark"] { --chrome-bg: oklch(12% 0.004 85); --chrome-ink: oklch(88% 0.006 85); --chrome-on: oklch(24% 0.005 85); --chrome-rule: oklch(26% 0.005 85); }
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; margin: 0; }
+html { scrollbar-color: var(--color-muted) var(--color-paper); }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); font-size: var(--text-md); line-height: 1.5; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; caret-color: var(--color-accent); }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: var(--grain-opacity); mix-blend-mode: soft-light; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+::selection { background: var(--color-accent-soft); color: var(--color-ink); }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; font-synthesis: none; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+a { color: inherit; text-underline-offset: 0.25em; }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+
+.chrome { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-lg); padding: var(--space-xs) var(--space-md); background: var(--chrome-bg); color: var(--chrome-ink); border-bottom: 1px solid var(--chrome-rule); font-size: var(--text-sm); }
+.chrome .grp { display: flex; align-items: center; gap: var(--space-xs); }
+.chrome .grp > span { opacity: 0.75; }
+.seg { display: inline-flex; gap: var(--space-2xs); padding: var(--space-2xs); border-radius: 10px; border: 1px solid var(--chrome-rule); }
+.seg button { border: 0; background: none; padding: var(--space-xs) var(--space-sm); border-radius: 7px; font-weight: 500; color: var(--chrome-ink); }
+.seg button[aria-pressed="true"] { background: var(--chrome-on); box-shadow: 0 0 0 1px var(--chrome-rule); }
+
+/* ---------- Shell ---------- */
+.app { position: relative; z-index: 2; min-height: calc(100dvh - 52px); }
+.top { height: 72px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 var(--space-xl); }
+.brand { font: 500 var(--text-lg)/1 var(--font-display); letter-spacing: -0.03em; }
+.tabs { display: flex; gap: 2px; padding: var(--space-2xs); border-radius: 999px; background: var(--color-bed); box-shadow: var(--bed-shadow); }
+.tabs a { height: 34px; padding: 0 var(--space-md); display: grid; place-items: center; border-radius: 999px; text-decoration: none; font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); transition: color var(--dur-micro) var(--ease-out); }
+.tabs a:hover { color: var(--color-ink); }
+.tabs a[aria-current="page"] { color: var(--metal-ink); background: linear-gradient(var(--metal-hi), var(--metal-lo)); box-shadow: var(--edge-light), var(--shadow-part); }
+.tools { justify-self: end; display: flex; align-items: center; gap: var(--space-2xs); }
+.timer { display: flex; align-items: center; gap: var(--space-sm); height: 40px; padding: 0 var(--space-2xs) 0 var(--space-md); border-radius: 999px; background: var(--color-bed); box-shadow: var(--bed-shadow); font-size: var(--text-sm); color: var(--color-muted); max-width: 340px; }
+.timer .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timer .t { color: var(--color-ink); font-weight: 500; }
+.key { height: 32px; padding: 0 var(--space-sm); border-radius: 999px; border: 0; background: linear-gradient(var(--metal-hi), var(--metal-lo)); box-shadow: var(--edge-light), var(--shadow-part); font-size: var(--text-sm); font-weight: 500; color: var(--metal-ink); display: inline-flex; align-items: center; gap: var(--space-2xs); white-space: nowrap; transition: transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out); }
+.key:active { transform: translateY(1px); }
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: none; border-radius: 999px; color: var(--color-muted); font-size: 18px; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.icon-btn:hover { color: var(--color-ink); background: var(--color-paper-2); }
+
+/* ---------- Page ---------- */
+.page { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-xl); display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-xl); align-items: start; }
+.head { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-sm); }
+.head h1 { font-size: var(--text-4xl); line-height: 1.04; letter-spacing: -0.035em; }
+.head p { color: var(--color-muted); font-size: var(--text-lg); }
+.head p b { color: var(--color-ink); font-weight: 500; }
+
+/* Today's list. The first row is next: it is the one raised part. */
+.list { list-style: none; margin: 0; padding: 0; }
+.task { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-md); min-height: 64px; padding: var(--space-sm) var(--space-md); border-top: 1px solid var(--color-rule); transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out); }
+.task[hidden] { display: none; }
+.task .check { width: 20px; height: 20px; border-radius: 50%; border: 0; padding: 0; background: var(--color-slot); box-shadow: var(--slot-shadow), inset 0 0 0 1px var(--color-rule); }
+.task .check:hover { box-shadow: var(--slot-shadow), inset 0 0 0 1.5px var(--color-accent); }
+.task .what { min-width: 0; }
+.task .what b { display: block; font: 400 var(--text-lg)/1.3 var(--font-display); letter-spacing: -0.015em; }
+.task .what span { font-size: var(--text-sm); color: var(--color-muted); }
+.task .est { font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
+.task .acts { display: flex; align-items: center; gap: var(--space-2xs); }
+.task:not(.is-next) .acts .key { opacity: 0; }
+.task:not(.is-next):hover .acts .key, .task:not(.is-next):focus-within .acts .key, .task[data-running] .acts .key { opacity: 1; }
+.task.is-next { border-top: 0; border-radius: var(--radius-row); background: linear-gradient(var(--color-paper-2), var(--color-paper-3)); box-shadow: var(--edge-light), var(--shadow-panel); padding: var(--space-md) var(--space-md) var(--space-md) var(--space-md); margin-bottom: var(--space-xs); }
+.task.is-next + .task { border-top: 0; }
+.task.is-next .what b { font-size: var(--text-xl); }
+.task.is-next .when { color: var(--color-accent-deep); font-weight: 500; }
+:root[data-mode="dark"] .task.is-next .when { color: var(--color-accent); }
+.lit { height: 40px; padding: 0 var(--space-md); border-radius: 999px; border: 0; background: linear-gradient(var(--color-accent), var(--color-accent-deep)); box-shadow: var(--edge-light), var(--shadow-part); color: var(--color-accent-ink); font-weight: 500; display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 96px; justify-content: center; transition: transform var(--dur-micro) var(--ease-out); }
+.lit:active { transform: translateY(1px); }
+.run { display: none; }
+[data-running] .start .idle { display: none; }
+[data-running] .start .run { display: inline-flex; align-items: center; gap: var(--space-xs); }
+[data-running] .start { background: var(--color-bed); color: var(--color-ink); box-shadow: var(--bed-shadow); }
+.run i { color: var(--color-accent); font-size: 10px; }
+.idle { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.quiet { height: 32px; padding: 0 var(--space-sm); border: 0; background: none; border-radius: 999px; color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.quiet:hover { color: var(--color-ink); background: var(--color-paper-2); }
+.list-foot { display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-md) var(--space-md) 0; border-top: 1px solid var(--color-rule); font-size: var(--text-sm); color: var(--color-muted); }
+.list-foot a { color: var(--color-ink); font-weight: 500; }
+
+/* The day panel, the signature */
+.panel { position: sticky; top: var(--space-lg); border-radius: var(--radius-card); background: linear-gradient(var(--color-paper-2), var(--color-paper-3)); box-shadow: var(--edge-light), var(--shadow-panel); padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-lg); }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-md); }
+.panel-head h2 { font-size: var(--text-lg); font-weight: 500; letter-spacing: -0.02em; }
+.panel-head span { font-size: var(--text-sm); color: var(--color-muted); }
+.bed { border-radius: var(--radius-bed); background: var(--color-bed); box-shadow: var(--bed-shadow); padding: var(--space-lg) var(--space-md) var(--space-md); }
+.scale { position: relative; height: 16px; margin: 0 var(--space-xs); font-size: var(--text-xs); color: var(--color-muted); }
+.scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ticks { height: 8px; margin: var(--space-xs) var(--space-xs); background-image: repeating-linear-gradient(90deg, var(--metal-groove) 0 1px, transparent 1px calc(100% / 12)); background-size: calc(100% + 1px) 100%; }
+.slot { position: relative; height: 36px; margin: 0 var(--space-xs); border-radius: 10px; background: var(--color-slot); box-shadow: var(--slot-shadow); }
+.seg-r { position: absolute; top: 8px; bottom: 8px; border-radius: 4px; }
+.seg-r.done { background: var(--color-done); }
+.seg-r.plan { background: var(--color-accent-soft); }
+.seg-r.next { background: var(--color-accent); }
+[data-running-next] .seg-r.next { background: repeating-linear-gradient(90deg, var(--color-accent) 0 3px, transparent 3px 5px); }
+.cap { position: absolute; top: 50%; left: var(--now); width: 28px; height: 64px; transform: translate(-50%, -50%); border-radius: var(--radius-part); background: repeating-linear-gradient(0deg, var(--metal-hi) 0 2px, var(--metal-lo) 2px 4px); box-shadow: var(--edge-light), var(--shadow-part); }
+.cap::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--color-accent); }
+.track-foot { display: flex; justify-content: flex-end; gap: var(--space-md); margin: var(--space-lg) var(--space-xs) 0; font-size: var(--text-xs); color: var(--color-muted); }
+.track-foot span { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.track-foot i { width: 12px; height: 6px; border-radius: 2px; }
+.l-done { background: var(--color-done); } .l-next { background: var(--color-accent); } .l-plan { background: var(--color-accent-soft); }
+.levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.levels div { padding: 0 var(--space-md); border-left: 1px solid var(--color-rule); }
+.levels div:first-child { padding-left: 0; border-left: 0; }
+.levels span { font-size: var(--text-sm); color: var(--color-muted); }
+.levels b { display: block; font: 400 var(--text-2xl)/1.1 var(--font-display); letter-spacing: -0.03em; white-space: nowrap; }
+
+/* ---------- Toast: the one undo pattern ---------- */
+.toast { position: fixed; left: 50%; bottom: var(--space-lg); z-index: 5; display: flex; align-items: center; gap: var(--space-md); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-lg); border-radius: 999px; background: var(--color-ink); color: var(--color-paper); box-shadow: var(--shadow-toast); font-size: var(--text-sm); transform: translate(-50%, calc(100% + var(--space-xl))); opacity: 0; transition: transform var(--dur-short) var(--ease-out), opacity var(--dur-short) var(--ease-out); }
+.toast[data-open] { transform: translate(-50%, 0); opacity: 1; transition-duration: var(--dur-long); }
+.toast button { height: 36px; padding: 0 var(--space-md); border-radius: 999px; border: 0; background: var(--color-paper); color: var(--color-ink); font-weight: 500; }
+
+/* ---------- Narrow windows ---------- */
+@media (max-width: 1000px) {
+  .top { grid-template-columns: auto 1fr; padding: 0 var(--space-md); gap: var(--space-md); }
+  .tabs, .timer .lbl { display: none; }
+  .page { grid-template-columns: minmax(0, 1fr); gap: var(--space-xl); padding: var(--space-xl) var(--space-md); }
+  .panel { position: static; order: -1; }
+  .head { order: -2; }
+  .head h1 { font-size: var(--text-3xl); }
+  .task { grid-template-columns: 20px minmax(0, 1fr) auto; }
+  .task .est { display: none; }
+  .task:not(.is-next) .acts .key { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <div class="grp"><span>Finish</span><div class="seg" role="group" aria-label="Finish">
+    <button data-k="scheme" data-v="aluminium">Aluminium</button><button data-k="scheme" data-v="graphite">Graphite</button>
+  </div></div>
+  <div class="grp"><span>Mode</span><div class="seg" role="group" aria-label="Mode">
+    <button data-k="mode" data-v="light">Light</button><button data-k="mode" data-v="dark">Dark</button>
+  </div></div>
+</div>
+
+<div class="app" id="app">
+  <header class="top">
+    <span class="brand">Tempo</span>
+    <nav class="tabs" aria-label="Main"><a href="#" aria-current="page">Today</a><a href="#">Plan</a><a href="#">Time</a><a href="#">Everything</a></nav>
+    <div class="tools">
+      <div class="timer" aria-live="polite"><span class="lbl" data-timer-label>CSV export fixes</span><span class="t" data-timer>41:08</span><button class="key" data-stop>Stop</button></div>
+      <button class="icon-btn" aria-label="Add or find"><i class="ph ph-magnifying-glass"></i></button>
+      <button class="icon-btn" aria-label="Completed, trash and settings"><i class="ph ph-dots-three"></i></button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="head">
+      <h1>Thursday 12 November</h1>
+      <p><b>5 tasks</b> left, about <b>1h 35m</b> of work and <b>3h</b> free.</p>
+    </div>
+
+    <section aria-label="Today's tasks">
+      <ul class="list" data-list>
+        <li class="task is-next" data-task="Invoice reminder to Halden Studio">
+          <button class="check" aria-label="Mark done"></button>
+          <div class="what"><b>Send the overdue invoice reminder to Halden Studio</b><span><span class="when">Next, fits before 3:00 pm.</span> Freelance, invoice #0142 for £1,860.00</span></div>
+          <span class="est">25 min</span>
+          <div class="acts">
+            <button class="lit start" data-start><span class="idle"><i class="ph-fill ph-play" aria-hidden="true"></i>Start</span><span class="run"><i class="ph-fill ph-circle" aria-hidden="true"></i><span data-elapsed>0:00</span></span></button>
+            <button class="quiet" data-nottoday>Not today</button>
+          </div>
+        </li>
+        <li class="task" data-task="Review Mira’s pull request">
+          <button class="check" aria-label="Mark done"></button>
+          <div class="what"><b>Review Mira’s pull request on the CSV export</b><span>Ledgerly</span></div>
+          <span class="est">40 min</span>
+          <div class="acts"><button class="key start" data-start><span class="idle"><i class="ph-fill ph-play" aria-hidden="true"></i>Start</span><span class="run"><i class="ph-fill ph-circle" aria-hidden="true"></i><span data-elapsed>0:00</span></span></button><button class="quiet" data-nottoday>Not today</button></div>
+        </li>
+        <li class="task" data-task="Book a dentist slot">
+          <button class="check" aria-label="Mark done"></button>
+          <div class="what"><b>Book a dentist slot for next week</b><span>Home</span></div>
+          <span class="est">5 min</span>
+          <div class="acts"><button class="key start" data-start><span class="idle"><i class="ph-fill ph-play" aria-hidden="true"></i>Start</span><span class="run"><i class="ph-fill ph-circle" aria-hidden="true"></i><span data-elapsed>0:00</span></span></button><button class="quiet" data-nottoday>Not today</button></div>
+        </li>
+        <li class="task" data-task="Plan Sunday’s long run">
+          <button class="check" aria-label="Mark done"></button>
+          <div class="what"><b>Plan Sunday’s 14 km long run</b><span>Running</span></div>
+          <span class="est">15 min</span>
+          <div class="acts"><button class="key start" data-start><span class="idle"><i class="ph-fill ph-play" aria-hidden="true"></i>Start</span><span class="run"><i class="ph-fill ph-circle" aria-hidden="true"></i><span data-elapsed>0:00</span></span></button><button class="quiet" data-nottoday>Not today</button></div>
+        </li>
+        <li class="task" data-task="Reply to Mr Okafor">
+          <button class="check" aria-label="Mark done"></button>
+          <div class="what"><b>Reply to Mr Okafor about the boiler service</b><span>Home</span></div>
+          <span class="est">10 min</span>
+          <div class="acts"><button class="key start" data-start><span class="idle"><i class="ph-fill ph-play" aria-hidden="true"></i>Start</span><span class="run"><i class="ph-fill ph-circle" aria-hidden="true"></i><span data-elapsed>0:00</span></span></button><button class="quiet" data-nottoday>Not today</button></div>
+        </li>
+      </ul>
+      <div class="list-foot"><span>2 tasks from earlier this week are waiting.</span><a href="#">Look at them</a></div>
+    </section>
+
+    <aside class="panel" aria-label="Your day">
+      <div class="panel-head"><h2>Your day</h2><span>Now 2:14 pm</span></div>
+      <div class="bed" data-track></div>
+      <div class="levels">
+        <div><span>Done</span><b>2h 40m</b></div>
+        <div><span>Planned</span><b>1h 35m</b></div>
+        <div><span>Free</span><b>3h</b></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="toast" role="status" aria-live="polite" data-toast><span data-toast-text>Moved to tomorrow.</span><button data-undo>Undo</button></div>
+
+<script>
+// Minutes after 8:00 am. Now is 2:14 pm.
+var NOW = 374, SPAN = 720;
+var segs = [
+  { a: 60, b: 150, k: "done" }, { a: 180, b: 255, k: "done" }, { a: 333, b: 374, k: "done" },
+  { a: 375, b: 400, k: "next" }, { a: 420, b: 460, k: "plan" }, { a: 465, b: 470, k: "plan" },
+  { a: 480, b: 495, k: "plan" }, { a: 495, b: 505, k: "plan" }
+];
+var HOURS = ["8 am", "10", "12 pm", "2", "4", "6", "8 pm"];
+function pct(m) { return (m / SPAN * 100) + "%"; }
+var track = document.querySelector("[data-track]");
+track.innerHTML =
+  '<div class="scale">' + HOURS.map(function (h, i) { return '<span style="left:' + (i / 6 * 100) + '%">' + h + "</span>"; }).join("") + "</div>" +
+  '<div class="ticks"></div>' +
+  '<div class="slot" style="--now:' + pct(NOW) + '">' + segs.map(function (s) { return '<span class="seg-r ' + s.k + '" style="left:' + pct(s.a) + ";width:" + pct(s.b - s.a) + '"></span>'; }).join("") +
+  '<span class="cap" role="img" aria-label="Now, 2:14 pm"></span></div>' +
+  '<div class="track-foot"><span><i class="l-done"></i>Done</span><span><i class="l-next"></i>Next</span><span><i class="l-plan"></i>Planned</span></div>';
+
+// Start: the lit key sinks into the bed and counts; the timer at the top takes the task. One timer at a time.
+var app = document.getElementById("app"), elapsed = 0, tick = null, current = null;
+var label = document.querySelector("[data-timer-label]"), clock = document.querySelector("[data-timer]");
+function fmt(sec) { return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+function paint() { if (current) current.querySelector("[data-elapsed]").textContent = fmt(elapsed); clock.textContent = fmt(elapsed); }
+function stop() {
+  clearInterval(tick);
+  if (current) current.removeAttribute("data-running");
+  current = null; app.removeAttribute("data-running-next");
+}
+document.querySelectorAll("[data-start]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var row = b.closest(".task");
+    if (row === current) return;
+    stop();
+    current = row; row.setAttribute("data-running", "");
+    if (row.classList.contains("is-next")) app.setAttribute("data-running-next", "");
+    label.textContent = row.dataset.task;
+    elapsed = 0; paint();
+    tick = setInterval(function () { elapsed++; paint(); }, 1000);
+  });
+});
+document.querySelector("[data-stop]").addEventListener("click", function () { stop(); label.textContent = "No timer running"; clock.textContent = ""; });
+
+// Not today: the row leaves, and the one undo pattern brings it back.
+var toast = document.querySelector("[data-toast]"), hide = null, moved = null;
+document.querySelectorAll("[data-nottoday]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    moved = b.closest(".task");
+    if (moved === current) stop();
+    moved.hidden = true;
+    document.querySelector("[data-toast-text]").textContent = "Moved to tomorrow.";
+    toast.setAttribute("data-open", "");
+    clearTimeout(hide); hide = setTimeout(function () { toast.removeAttribute("data-open"); }, 5000);
+  });
+});
+document.querySelector("[data-undo]").addEventListener("click", function () { if (moved) moved.hidden = false; toast.removeAttribute("data-open"); });
+
+// Comparison switches
+var root = document.documentElement;
+function store(k, v) { try { localStorage.setItem("fader-" + k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem("fader-" + k); } catch (e) { return null; } }
+function render() { document.querySelectorAll("[data-k]").forEach(function (b) { b.setAttribute("aria-pressed", root.dataset[b.dataset.k] === b.dataset.v); }); }
+document.querySelectorAll("[data-k]").forEach(function (b) { b.addEventListener("click", function () { root.dataset[b.dataset.k] = b.dataset.v; store(b.dataset.k, b.dataset.v); render(); }); });
+root.dataset.scheme = load("scheme") || "aluminium";
+root.dataset.mode = load("mode") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+render();
+</script>
+</body>
+</html>

@@ -31,5 +31,5 @@
     "**/*.mts"
   ],
   "//": "vitest.config.ts is test tooling, not app code; its Vite plugin types conflict with the Next build's typecheck.",
-  "exclude": ["node_modules", "vitest.config.ts"]
+  "exclude": ["node_modules", "vitest.config.ts", "docs/design"]
 }

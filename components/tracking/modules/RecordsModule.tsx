@@ -1,218 +1,210 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { fmt } from "@/lib/format";
+import { Fragment, useMemo, useState } from "react";
+import Button from "@/components/ui/Button";
+import Card, { CardHeader } from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
+import Input from "@/components/ui/Input";
+import Menu from "@/components/ui/Menu";
+import { fmt, fmtClock, fmtDate } from "@/lib/format";
+import { addDays, toISODate } from "@/lib/parse";
 import { useTasks } from "@/lib/store-context";
-import { projectColorVar, type Activity, type Category, type Project, type Segment, type Task } from "@/lib/types";
+import type { Segment } from "@/lib/types";
 import CategoryPicker from "../CategoryPicker";
-import MetaLabel from "../MetaLabel";
 import { segmentLabel, segmentSubject } from "../segment-label";
 import TaskPicker from "../TaskPicker";
 
-function clockLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const TH = "bg-sunk px-3 py-2.5 text-left font-mono text-caption font-normal uppercase tracking-caption text-ink-3";
+const TD = "border-b border-line px-3 py-3 group-last:border-b-0";
+
+function startedLabel(iso: string, todayISO: string): string {
+  const d = new Date(iso);
+  const day = toISODate(d);
+  const time = fmtClock(d);
+  if (day === todayISO) return `Today ${time}`;
+  if (day === addDays(todayISO, -1)) return `Yesterday ${time}`;
+  return `${fmtDate(day, todayISO)} ${time}`;
 }
 
-/** A plain editable table of the day's segments — the fallback when a module above doesn't cover it. */
-export default function RecordsModule({ now }: { now: Date }) {
+function source(segment: Segment): { label: string; dot: string } {
+  if (!segment.endedAt) return { label: "Running", dot: "bg-ok" };
+  if (segment.source === "manual") return { label: "Manual", dot: "bg-accent" };
+  if (segment.source === "backfill") return { label: "Gap fill", dot: "bg-ink-3" };
+  return { label: "Timer", dot: "bg-ink-3" };
+}
+
+/** The Recent entries card (soft.html 697-708): the day's segments, every one editable. */
+export default function RecordsModule({ now, dayISO, todayISO }: { now: Date; dayISO: string; todayISO: string }) {
   const { segments, categories, activities, tasks, projects, patchSegment, deleteSegment, openTask } = useTasks();
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [ascending, setAscending] = useState(true);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const filtered = filterCategory === "all" ? segments : segments.filter((s) => s.categoryId === filterCategory);
     return [...filtered].sort((a, b) =>
-      ascending ? a.startedAt.localeCompare(b.startedAt) : b.startedAt.localeCompare(a.startedAt),
+      newestFirst ? b.startedAt.localeCompare(a.startedAt) : a.startedAt.localeCompare(b.startedAt),
     );
-  }, [segments, filterCategory, ascending]);
+  }, [segments, filterCategory, newestFirst]);
 
-  if (segments.length === 0) {
-    return <p className="text-sm text-muted-foreground">No segments recorded today.</p>;
-  }
+  const dayLabel = dayISO === todayISO ? "Today" : fmtDate(dayISO, todayISO);
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <MetaLabel as="div">Filter</MetaLabel>
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          aria-label="Filter by category"
-          className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm outline-none focus:border-accent/40"
-        >
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={() => setAscending((v) => !v)}
-          className="rounded-lg px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          Sort {ascending ? "↑" : "↓"}
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[48rem] text-sm">
-          <thead>
-            <tr className="border-b border-border/70 text-left">
-              <th className="py-2 pr-3 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                Time
-              </th>
-              <th className="py-2 pr-3 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                Category
-              </th>
-              <th className="py-2 pr-3 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                What
-              </th>
-              <th className="py-2 pr-3 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                Duration
-              </th>
-              <th className="py-2 pr-3 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                Note
-              </th>
-              <th className="py-2 font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-muted-foreground" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((segment) => (
-              <RecordRow
-                key={segment.id}
-                segment={segment}
-                now={now}
-                categories={categories}
-                activities={activities}
-                tasks={tasks}
-                projects={projects}
-                patchSegment={patchSegment}
-                deleteSegment={deleteSegment}
-                openTask={openTask}
-              />
+  const right = (
+    <span className="flex items-center gap-2">
+      {segments.length > 0 && (
+        <>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            aria-label="Filter by category"
+            className="h-[30px] rounded-full bg-transparent px-3 text-meta text-ink inset-ring-1 inset-ring-line-2"
+          >
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function RecordRow({
-  segment,
-  now,
-  categories,
-  activities,
-  tasks,
-  projects,
-  patchSegment,
-  deleteSegment,
-  openTask,
-}: {
-  segment: Segment;
-  now: Date;
-  categories: Category[];
-  activities: Activity[];
-  tasks: Task[];
-  projects: Project[];
-  patchSegment: (id: string, patch: Partial<{ categoryId: string; taskId: string; activityId: string; note: string }>) => void;
-  deleteSegment: (id: string) => void;
-  openTask: (id: string) => void;
-}) {
-  const [linking, setLinking] = useState(false);
-  const subject = segmentSubject(segment, categories, activities, tasks, projects);
-
-  // now is throttled to a 60s tick, so a segment started moments ago can
-  // briefly compute negative — clamp rather than show "-1d -1h".
-  const minutes = Math.max(
-    0,
-    Math.round((new Date(segment.endedAt ?? now.toISOString()).getTime() - new Date(segment.startedAt).getTime()) / 60_000),
+          </select>
+          <Button size="sm" onClick={() => setNewestFirst((v) => !v)}>
+            {newestFirst ? "Newest first" : "Oldest first"}
+          </Button>
+        </>
+      )}
+      <span>{dayLabel}</span>
+    </span>
   );
 
   return (
-    <tr className="border-b border-border/50 last:border-b-0">
-      <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs text-muted-foreground">
-        {clockLabel(segment.startedAt)}
-        {segment.endedAt ? ` – ${clockLabel(segment.endedAt)}` : " – now"}
-      </td>
-      <td className="py-2 pr-3">
-        <CategoryPicker
-          categories={categories}
-          value={segment.categoryId}
-          onChange={(categoryId) => patchSegment(segment.id, { categoryId })}
-        />
-      </td>
-      <td className="truncate py-2 pr-3">
-        {linking ? (
-          <TaskPicker
-            tasks={tasks}
-            projects={projects}
-            value={segment.taskId}
-            clearable
-            onChange={(taskId) => {
-              patchSegment(segment.id, { taskId, activityId: taskId ? "" : undefined });
-              setLinking(false);
-            }}
-          />
-        ) : subject.task ? (
-          <span className="inline-flex max-w-full items-center gap-1.5 truncate">
-            <button
-              type="button"
-              onClick={() => openTask(subject.task!.id)}
-              className="inline-flex min-w-0 items-center gap-1.5 truncate text-left hover:underline"
-            >
-              {subject.project && (
-                <span
-                  aria-hidden
-                  className="size-1.5 shrink-0 rounded-full"
-                  style={{ background: projectColorVar(subject.project.color) }}
-                />
-              )}
-              <span className="truncate">{subject.label}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setLinking(true)}
-              aria-label={`Change linked task for ${subject.label}`}
-              className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
-            >
-              ✎
-            </button>
-          </span>
+    <Card>
+      <CardHeader title="Recent entries" icon={<Icon name="clock" size={16} />} right={right} />
+      <div className="px-3 pb-3">
+        {segments.length === 0 ? (
+          <p className="px-4 py-3 text-body text-ink-3">Nothing tracked on this day.</p>
+        ) : rows.length === 0 ? (
+          <p className="px-4 py-3 text-body text-ink-3">No entries in this category.</p>
         ) : (
-          <span className="inline-flex max-w-full items-center gap-1.5 truncate">
-            <span className="truncate">{subject.label}</span>
-            <button
-              type="button"
-              onClick={() => setLinking(true)}
-              className="shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline"
-            >
-              Link task
-            </button>
-          </span>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-secondary">
+              <thead>
+                <tr>
+                  <th className={`${TH} rounded-l-tab`}>Task</th>
+                  <th className={TH}>Project</th>
+                  <th className={TH}>Started</th>
+                  <th className={TH}>Source</th>
+                  <th className={`${TH} text-right`}>Duration</th>
+                  <th className={`${TH} w-12 rounded-r-tab`}>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((segment) => {
+                  const subject = segmentSubject(segment, categories, activities, tasks, projects);
+                  const src = source(segment);
+                  const minutes = Math.max(
+                    0,
+                    Math.round(
+                      (new Date(segment.endedAt ?? now.toISOString()).getTime() - new Date(segment.startedAt).getTime()) /
+                        60_000,
+                    ),
+                  );
+                  const editing = editingId === segment.id;
+                  return (
+                    <Fragment key={segment.id}>
+                      <tr className="group">
+                        <td className={`${TD} text-ink`}>
+                          {subject.task ? (
+                            <button
+                              type="button"
+                              onClick={() => openTask(subject.task!.id)}
+                              className="text-left hover:underline"
+                            >
+                              {subject.label}
+                            </button>
+                          ) : (
+                            subject.label
+                          )}
+                        </td>
+                        <td className={`${TD} text-ink`}>
+                          {subject.project ? subject.project.name : null}
+                        </td>
+                        <td className={`${TD} whitespace-nowrap font-mono text-ink-2`}>
+                          {startedLabel(segment.startedAt, todayISO)}
+                        </td>
+                        <td className={TD}>
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-meta text-ink-2 inset-ring-1 inset-ring-line-2">
+                            <i aria-hidden className={`size-1.5 rounded-full ${src.dot}`} />
+                            {src.label}
+                          </span>
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-right font-mono text-ink-2`}>{fmt(minutes)}</td>
+                        <td className={`${TD} text-right`}>
+                          <Menu
+                            variant="icon"
+                            ariaLabel="Edit entry"
+                            label={<Icon name="more" size={16} />}
+                            minWidth={140}
+                            items={[
+                              { id: "edit", label: "Edit", onSelect: () => setEditingId(editing ? null : segment.id) },
+                              {
+                                id: "delete",
+                                label: "Delete",
+                                danger: true,
+                                onSelect: () => {
+                                  if (editing) setEditingId(null);
+                                  deleteSegment(segment.id);
+                                },
+                              },
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                      {editing && (
+                        <tr>
+                          <td colSpan={6} className="border-b border-line px-3 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CategoryPicker
+                                categories={categories}
+                                value={segment.categoryId}
+                                onChange={(categoryId) => patchSegment(segment.id, { categoryId })}
+                              />
+                              <TaskPicker
+                                tasks={tasks}
+                                projects={projects}
+                                value={segment.taskId}
+                                clearable
+                                placeholder="Link a task"
+                                onChange={(taskId) =>
+                                  patchSegment(segment.id, { taskId, activityId: taskId ? "" : undefined })
+                                }
+                              />
+                              <Input
+                                wrapperClassName="min-w-48 flex-1"
+                                defaultValue={segment.note ?? ""}
+                                placeholder="Note"
+                                aria-label={`Note for ${segmentLabel(segment, categories, activities, tasks)}`}
+                                onBlur={(e) => {
+                                  if (e.target.value !== (segment.note ?? "")) {
+                                    patchSegment(segment.id, { note: e.target.value });
+                                  }
+                                }}
+                              />
+                              <Button variant="chip" onClick={() => setEditingId(null)}>
+                                Done
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </td>
-      <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs tabular-nums text-muted-foreground">{fmt(minutes)}</td>
-      <td className="py-2 pr-3">
-        <input
-          defaultValue={segment.note ?? ""}
-          aria-label={`Note for ${segmentLabel(segment, categories, activities, tasks)}`}
-          onBlur={(e) => {
-            if (e.target.value !== (segment.note ?? "")) patchSegment(segment.id, { note: e.target.value });
-          }}
-          className="w-full min-w-32 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm outline-none transition-colors hover:border-border focus:border-accent/40 focus:bg-card"
-        />
-      </td>
-      <td className="py-2 text-right">
-        <button
-          onClick={() => deleteSegment(segment.id)}
-          aria-label="Delete segment"
-          className="px-1 text-muted-foreground hover:text-foreground"
-        >
-          ×
-        </button>
-      </td>
-    </tr>
+      </div>
+    </Card>
   );
 }

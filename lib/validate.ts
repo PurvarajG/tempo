@@ -3,8 +3,10 @@ import {
   DURATIONS,
   STAGE_KINDS,
   type CategoryKind,
+  type DayEnergy,
   type Duration,
   type Priority,
+  type Recurrence,
   type StageKind,
 } from "./types";
 
@@ -168,4 +170,69 @@ export function stringList(value: unknown, field: string): string[] {
     }
     return v;
   });
+}
+
+export function nullableIsoDate(value: unknown, field: string): string | null {
+  if (value === null) return null;
+  return isoDate(value, field);
+}
+
+export function optionalNullableIsoDate(value: unknown, field: string): string | null | undefined {
+  if (value === undefined) return undefined;
+  return nullableIsoDate(value, field);
+}
+
+export function recurrence(value: unknown, field: string): Recurrence {
+  const r = body(value);
+  const freq = str(r.freq, `${field}.freq`, 10);
+  if (!["daily", "weekly", "monthly"].includes(freq)) fail(`${field}.freq is invalid`);
+  const out: Recurrence = {
+    freq: freq as Recurrence["freq"],
+    interval: minutes(r.interval ?? 1, `${field}.interval`, 365),
+  };
+  if (r.from !== undefined) {
+    const from = str(r.from, `${field}.from`, 10);
+    if (from !== "schedule" && from !== "done") fail(`${field}.from is invalid`);
+    out.from = from;
+  }
+  return out;
+}
+
+export function energy(value: unknown, field: string): DayEnergy | null {
+  if (value === null) return null;
+  if (value !== 1 && value !== 2 && value !== 3) fail(`${field} must be 1, 2 or 3`);
+  return value as DayEnergy;
+}
+
+export function weekday(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 6) {
+    fail(`${field} must be a weekday, 0-6`);
+  }
+  return value;
+}
+
+export function oneOf<T extends string>(value: unknown, field: string, allowed: readonly T[]): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    fail(`${field} must be one of ${allowed.join(", ")}`);
+  }
+  return value as T;
+}
+
+export function nullablePositiveInt(value: unknown, field: string, max: number): number | null {
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > max) {
+    fail(`${field} must be a whole number, 1-${max}`);
+  }
+  return value;
+}
+
+/** Electron accelerator style, for example "Control+Alt+Space". */
+export function shortcut(value: unknown, field: string): string {
+  const s = str(value, field, 200);
+  if (!s.trim()) fail(`${field} can't be empty`);
+  if (s.length > 60) fail(`${field} must be 60 characters or fewer`);
+  if (!/^[A-Za-z0-9]+(\+[A-Za-z0-9]+)*$/.test(s)) {
+    fail(`${field} must look like Control+Alt+Space`);
+  }
+  return s;
 }

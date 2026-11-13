@@ -1,23 +1,38 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Project, ProjectStage, Task, TaskInput } from "../types";
-import { request } from "./request";
+import { request, RequestFailed } from "./request";
 
-type AddOptions = { projectId?: string; stageId?: string; scheduled?: string };
+type AddOptions = { projectId?: string; stageId?: string; scheduled?: string | null };
 
 export type TasksApi = {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  /** The latest tasks, updated synchronously by every setTasks (no render needed). */
+  getTasks: () => Task[];
   projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   addTask: (text: string, opts?: AddOptions) => Promise<Task | null>;
-  patchTask: (id: string, patch: Partial<TaskInput>) => Promise<void>;
-  moveTask: (id: string, stageId: string, index: number) => Promise<void>;
-  completeTask: (id: string) => Promise<void>;
-  reopenTask: (id: string) => Promise<void>;
-  trashTask: (id: string) => Promise<void>;
+  patchTask: (id: string, patch: Partial<TaskInput>) => Promise<boolean>;
+  moveTask: (id: string, stageId: string, index: number) => Promise<boolean>;
+  completeTask: (id: string) => Promise<{ ok: boolean; next: Task | null }>;
+  reopenTask: (id: string) => Promise<boolean>;
+  trashTask: (id: string) => Promise<boolean>;
   reorderTasks: (ids: string[]) => Promise<void>;
+  addTasks: (
+    texts: string[],
+    opts?: { defaultScheduled?: string | null; projectId?: string },
+  ) => Promise<Task[]>;
+  rescheduleTasks: (ids: string[], day: string | null) => Promise<Task[]>;
+  commitTask: (
+    id: string,
+    day: string,
+  ) => Promise<{ ok: true; task: Task } | { ok: false; committed: Task[] } | null>;
+  uncommitTask: (id: string) => Promise<Task | null>;
+  linkBlocker: (taskId: string, blockerId: string) => Promise<Task | null>;
+  unlinkBlocker: (taskId: string, blockerId: string) => Promise<Task | null>;
+  expireDueTasks: (today: string) => Promise<Task[]>;
   addSubtask: (taskId: string, title: string) => Promise<void>;
   toggleSubtask: (taskId: string, subtaskId: string, done: boolean) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
@@ -30,7 +45,13 @@ export function useTasksState(
   onError: (message: string) => void,
   onStagesCreated: (stages: ProjectStage[]) => void,
 ): TasksApi {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasksState] = useState<Task[]>([]);
+  const latest = useRef<Task[]>(tasks);
+  const setTasks = useCallback<React.Dispatch<React.SetStateAction<Task[]>>>((action) => {
+    latest.current = typeof action === "function" ? action(latest.current) : action;
+    setTasksState(latest.current);
+  }, []);
+  const getTasks = useCallback(() => latest.current, []);
   const [projects, setProjects] = useState<Project[]>([]);
 
   const addTask = useCallback(
@@ -67,7 +88,7 @@ export function useTasksState(
         throw error;
       }
     },
-    [onError, onStagesCreated, projects],
+    [onError, onStagesCreated, projects, setTasks],
   );
 
   const patchTask = useCallback(
@@ -75,7 +96,7 @@ export function useTasksState(
       let before: Task[] = [];
       setTasks((prev) => {
         before = prev;
-        return prev.map((t) => (t.id === id ? { ...t, ...patch } : t));
+        return prev.map((t) => (t.id === id ? ({ ...t, ...patch } as Task) : t));
       });
       try {
         const saved = await request<Task>(`/api/tasks/${id}`, {
@@ -83,12 +104,14 @@ export function useTasksState(
           body: JSON.stringify(patch),
         });
         setTasks((prev) => prev.map((t) => (t.id === id ? saved : t)));
+        return true;
       } catch (error) {
         setTasks(before);
         onError((error as Error).message);
+        return false;
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   /**
@@ -111,13 +134,15 @@ export function useTasksState(
         // The server renumbers both columns, so take its ordering wholesale.
         const fresh = await request<Task[]>("/api/tasks");
         setTasks(fresh);
-        return void saved;
+        void saved;
+        return true;
       } catch (error) {
         setTasks(before);
         onError((error as Error).message);
+        return false;
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const completeTask = useCallback(
@@ -138,12 +163,14 @@ export function useTasksState(
           const next = prev.map((t) => (t.id === id ? saved.task : t));
           return saved.next ? [...next, saved.next] : next;
         });
+        return { ok: true, next: saved.next ?? null };
       } catch (error) {
         setTasks(before);
         onError((error as Error).message);
+        return { ok: false, next: null };
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const reopenTask = useCallback(
@@ -158,12 +185,14 @@ export function useTasksState(
       try {
         const saved = await request<Task>(`/api/tasks/${id}/reopen`, { method: "POST" });
         setTasks((prev) => prev.map((t) => (t.id === id ? saved : t)));
+        return true;
       } catch (error) {
         setTasks(before);
         onError((error as Error).message);
+        return false;
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const trashTask = useCallback(
@@ -175,12 +204,14 @@ export function useTasksState(
       });
       try {
         await request(`/api/tasks/${id}`, { method: "DELETE" });
+        return true;
       } catch (error) {
         setTasks(before);
         onError((error as Error).message);
+        return false;
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const reorderTasks = useCallback(
@@ -198,7 +229,141 @@ export function useTasksState(
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setTasks],
+  );
+
+  const replaceTasks = useCallback(
+    (saved: Task[]) => {
+      const byId = new Map(saved.map((t) => [t.id, t]));
+      setTasks((prev) => prev.map((t) => byId.get(t.id) ?? t));
+    },
+    [setTasks],
+  );
+
+  const addTasks = useCallback(
+    async (texts: string[], opts?: { defaultScheduled?: string | null; projectId?: string }) => {
+      const items = texts.map((t) => t.trim()).filter(Boolean).map((text) => ({ text }));
+      if (items.length === 0) return [];
+      try {
+        const created = await request<Task[]>("/api/tasks/batch", {
+          method: "POST",
+          body: JSON.stringify({ items, ...opts }),
+        });
+        setTasks((prev) => [...prev, ...created]);
+        return created;
+      } catch (error) {
+        onError((error as Error).message);
+        throw error;
+      }
+    },
+    [onError, setTasks],
+  );
+
+  const rescheduleTasks = useCallback(
+    async (ids: string[], day: string | null) => {
+      if (ids.length === 0) return [];
+      try {
+        const saved = await request<Task[]>("/api/tasks/reschedule", {
+          method: "POST",
+          body: JSON.stringify({ ids, day }),
+        });
+        replaceTasks(saved);
+        return saved;
+      } catch (error) {
+        onError((error as Error).message);
+        return [];
+      }
+    },
+    [onError, replaceTasks],
+  );
+
+  const commitTask = useCallback(
+    async (id: string, day: string) => {
+      // request() drops the 409 body, so call fetch directly to keep `committed`.
+      try {
+        let res: Response;
+        try {
+          res = await fetch(`/api/tasks/${id}/commit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ day }),
+          });
+        } catch {
+          throw new RequestFailed(0, "You appear to be offline");
+        }
+        if (res.status === 409) {
+          const body = (await res.json().catch(() => null)) as { committed?: Task[] } | null;
+          return { ok: false as const, committed: body?.committed ?? [] };
+        }
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new RequestFailed(res.status, body?.error ?? "That didn't save");
+        }
+        const task = (await res.json()) as Task;
+        setTasks((prev) => prev.map((t) => (t.id === id ? task : t)));
+        return { ok: true as const, task };
+      } catch (error) {
+        onError((error as Error).message);
+        return null;
+      }
+    },
+    [onError, setTasks],
+  );
+
+  const saveOne = useCallback(
+    async (url: string, init: RequestInit) => {
+      try {
+        const saved = await request<Task>(url, init);
+        setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+        return saved;
+      } catch (error) {
+        onError((error as Error).message);
+        return null;
+      }
+    },
+    [onError, setTasks],
+  );
+
+  const uncommitTask = useCallback(
+    (id: string) => saveOne(`/api/tasks/${id}/commit`, { method: "DELETE" }),
+    [saveOne],
+  );
+
+  const linkBlocker = useCallback(
+    (taskId: string, blockerId: string) =>
+      saveOne(`/api/tasks/${taskId}/links`, {
+        method: "POST",
+        body: JSON.stringify({ blockerId }),
+      }),
+    [saveOne],
+  );
+
+  const unlinkBlocker = useCallback(
+    (taskId: string, blockerId: string) =>
+      saveOne(`/api/tasks/${taskId}/links?blockerId=${encodeURIComponent(blockerId)}`, {
+        method: "DELETE",
+      }),
+    [saveOne],
+  );
+
+  const expireDueTasks = useCallback(
+    async (today: string) => {
+      try {
+        const expired = await request<Task[]>("/api/tasks/expire", {
+          method: "POST",
+          body: JSON.stringify({ today }),
+        });
+        if (expired.length > 0) {
+          const gone = new Set(expired.map((t) => t.id));
+          setTasks((prev) => prev.filter((t) => !gone.has(t.id)));
+        }
+        return expired;
+      } catch (error) {
+        onError((error as Error).message);
+        return [];
+      }
+    },
+    [onError, setTasks],
   );
 
   const addSubtask = useCallback(
@@ -217,7 +382,7 @@ export function useTasksState(
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const toggleSubtask = useCallback(
@@ -241,7 +406,7 @@ export function useTasksState(
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const deleteSubtask = useCallback(
@@ -262,7 +427,7 @@ export function useTasksState(
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   const addProject = useCallback(
@@ -317,12 +482,13 @@ export function useTasksState(
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setTasks],
   );
 
   return {
     tasks,
     setTasks,
+    getTasks,
     projects,
     setProjects,
     addTask,
@@ -332,6 +498,13 @@ export function useTasksState(
     reopenTask,
     trashTask,
     reorderTasks,
+    addTasks,
+    rescheduleTasks,
+    commitTask,
+    uncommitTask,
+    linkBlocker,
+    unlinkBlocker,
+    expireDueTasks,
     addSubtask,
     toggleSubtask,
     deleteSubtask,

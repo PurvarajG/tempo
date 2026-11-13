@@ -13,19 +13,28 @@ const {
   Tray,
   nativeImage,
   Notification,
+  globalShortcut,
+  powerMonitor,
 } = require("electron");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
+const os = require("node:os");
 const net = require("node:net");
 const fs = require("node:fs");
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { createServerLifecycle } = require("./server-lifecycle");
+const { createReminderSchedule } = require("./reminder-schedule");
+const { createNudgeCounter, nudgeMessage } = require("./nudge");
+const { createAwayWatcher, awayPromptText } = require("./away-watcher");
+const { scanClaudeSessions, createWaitTracker, waitingNotification, PROJECTS_SUBPATH } = require("./claude-sessions");
+const { createUpdateChecker } = require("./update-check");
+const { migrateLegacyUserData, legacyAppRunning } = require("./user-data-migration");
 
-app.setName("Tempo");
+app.setName("Doem");
 
 // PGlite has no real cross-process lock (postmaster.pid holds its own
-// placeholder PID, not a usable advisory lock), so two Tempo processes
+// placeholder PID, not a usable advisory lock), so two Doem processes
 // pointed at the same PGLITE_DIR silently corrupt it rather than refusing to
 // start — this is the single biggest risk in the whole app. Refuse to be
 // the second instance; hand off to the one already running instead.
@@ -63,6 +72,11 @@ let tray = null;
 let trayTickInterval = null;
 let trayTimerStatus = null; // { label, startedAtMs } | null
 let toggleTimerMenuItem = null;
+// The quick-capture bar. Never the "main window": activate, the tray click and
+// window-all-closed keep acting on mainWindow only.
+let captureWindow = null;
+let mainLoaded = false;
+const pendingCommands = [];
 
 // Shown immediately on window creation, before the local server is even
 // spawned, so the app doesn't sit on a blank white window for however long
@@ -73,50 +87,44 @@ let toggleTimerMenuItem = null;
 // app's own dark palette uses in app/globals.css.
 const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
 html, body { margin: 0; height: 100%; }
-body { display: flex; align-items: center; justify-content: center; background: #fafafa; }
-.mark { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #0052ff, #4d7cff); }
+body { display: flex; align-items: center; justify-content: center; background: #f6f6f3; }
+.mark { width: 56px; height: 56px; }
+.tile { fill: #141519; }
+.glyph { fill: #f6f6f3; }
 @media (prefers-color-scheme: dark) {
-  body { background: #0b0d10; }
-  .mark { background: linear-gradient(135deg, #4d7cff, #7c9bff); }
+  body { background: #121318; }
+  .tile { fill: #ededef; }
+  .glyph { fill: #121318; }
 }
-</style></head><body><div class="mark"></div></body></html>`;
+</style></head><body><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect class="tile" width="32" height="32" rx="10"/><path class="glyph" transform="translate(5.9 5.6) scale(0.1)" d="M 150 22 C 150 10 158 4 172 4 C 186 4 194 10 194 22 L 194 126 C 194 176 165 204 118 204 L 28 204 C 16 204 10 197 10 186 C 10 175 17 168 28 168 L 110 168 C 139 168 153 151 153 133 C 153 114 137 98 110 98 L 30 98 C 18 98 12 91 12 80 C 12 69 19 62 30 62 L 125 62 C 135 62 143 64 150 69 Z M 27 114 L 102 114 C 114 114 121 121 121 131 C 121 141 114 148 102 148 L 27 148 C 15 148 8 141 8 131 C 8 121 15 114 27 114 Z"/></svg></body></html>`;
 const SPLASH_URL = `data:text/html;charset=utf-8,${encodeURIComponent(SPLASH_HTML)}`;
 
-/**
- * The app was called DayPlan until the Tempo rename, and the userData path is
- * derived from the app name — so an existing install's database sat under the
- * old name. Move it across once.
- *
- * This runs at load rather than inside userDataDir(): Chromium creates the
- * userData directory itself early in startup, so by the time anything of ours
- * asks for the path the destination usually exists already. Hence the second
- * branch, which rescues just the database out of a directory Chromium got to
- * first.
- */
-function migrateLegacyUserData() {
-  const dir = app.getPath("userData");
-  const legacy = path.join(path.dirname(dir), "DayPlan");
-  if (dir === legacy || !fs.existsSync(legacy)) return;
-
-  try {
-    if (!fs.existsSync(dir)) {
-      fs.renameSync(legacy, dir);
-      return;
-    }
-    // Only ever move the database into a slot nothing has claimed — never
-    // overwrite a Tempo-era database with the old one.
-    if (fs.existsSync(path.join(legacy, "pglite")) && !fs.existsSync(path.join(dir, "pglite"))) {
-      fs.renameSync(path.join(legacy, "pglite"), path.join(dir, "pglite"));
-    }
-  } catch {
-    // A failed move just means starting from an empty database — never fatal.
-  }
+// The app was DayPlan, then Tempo, now Doem, and the userData path is derived
+// from the app name, so an existing install's data sits under an earlier
+// name. Move it across once (DayPlan -> Tempo -> Doem; see
+// user-data-migration.js).
+//
+// This runs at load rather than inside userDataDir(). In practice the Doem
+// folder always exists by now (requestSingleInstanceLock above creates its
+// lock files there), so the module's second branch is the one that runs: it
+// moves the database, settings and localStorage into unclaimed slots.
+//
+// Our single-instance lock lives in the Doem folder and cannot see a running
+// Tempo. Moving the database out from under it would leave two PGlite writers
+// on one directory, so refuse to start until the old app is quit.
+const runningLegacyApp = legacyAppRunning(app.getPath("userData"));
+if (runningLegacyApp) {
+  dialog.showErrorBox(
+    `Quit ${runningLegacyApp} first`,
+    `${runningLegacyApp} is still open and using your data. Quit it (also from its menu bar icon), then open Doem again. Your tasks move across on that launch.`,
+  );
+  app.exit(0);
+  process.exit(0);
 }
-
-migrateLegacyUserData();
+const migratedUserData = migrateLegacyUserData(app.getPath("userData"));
 
 /**
- * ~/Library/Application Support/Tempo on macOS. Chromium only creates this
+ * ~/Library/Application Support/Doem on macOS. Chromium only creates this
  * lazily, so anything of ours that writes there has to make it first.
  */
 function userDataDir() {
@@ -168,6 +176,7 @@ function readDesktopSettings() {
     icloudAppleId: "",
     icloudAppPassword: "",
     windowBounds: null,
+    captureShortcut: "Control+Alt+Space",
   };
   const merged = { ...defaults, ...settings };
   // Only rewrite when something actually changed, so an untouched file keeps
@@ -176,7 +185,7 @@ function readDesktopSettings() {
     try {
       writeSettingsFile(file, `${JSON.stringify(merged, null, 2)}\n`);
     } catch (err) {
-      logLine(`[tempo] could not write ${file}: ${err.message}`);
+      logLine(`[doem] could not write ${file}: ${err.message}`);
     }
   }
   return merged;
@@ -194,7 +203,7 @@ function writeDesktopSettings(patch) {
   try {
     writeSettingsFile(file, `${JSON.stringify(merged, null, 2)}\n`);
   } catch (err) {
-    logLine(`[tempo] could not write ${file}: ${err.message}`);
+    logLine(`[doem] could not write ${file}: ${err.message}`);
   }
 }
 
@@ -234,7 +243,7 @@ function clampBoundsToDisplay(bounds) {
 }
 
 function logFile() {
-  return path.join(userDataDir(), "tempo.log");
+  return path.join(userDataDir(), "doem.log");
 }
 
 function logLine(text) {
@@ -251,7 +260,7 @@ function logLine(text) {
  * that exact URL for the life of the subscription — so an ephemeral port meant
  * every subscription died at the next launch. Claim a fixed port instead, with
  * a couple of neighbours as fallback for the rare case something else holds it
- * (a stale Tempo mid-shutdown, mostly). Only if all of them are taken do we
+ * (a stale Doem mid-shutdown, mostly). Only if all of them are taken do we
  * fall back to a random port, which still runs the app — the subscription is
  * what breaks, not the window.
  */
@@ -274,7 +283,7 @@ async function getFreePort() {
     const port = await tryPort(candidate);
     if (port) return port;
   }
-  logLine(`[tempo] ports ${PREFERRED_PORTS.join(", ")} are all in use; falling back to a random one — an existing calendar subscription will not reach this session`);
+  logLine(`[doem] ports ${PREFERRED_PORTS.join(", ")} are all in use; falling back to a random one — an existing calendar subscription will not reach this session`);
   // Port 0 asks the OS for anything free, and never fails the way a fixed
   // port can, so this resolves or the app had bigger problems.
   return tryPort(0);
@@ -340,7 +349,7 @@ const serverLifecycle = createServerLifecycle(async () => {
 });
 
 function startServer(port) {
-  logLine(`[tempo] starting server on port ${port} from ${projectRoot}`);
+  logLine(`[doem] starting server on port ${port} from ${projectRoot}`);
   const settings = readDesktopSettings();
   const nextBin = require.resolve("next/dist/bin/next", { paths: [projectRoot] });
 
@@ -415,9 +424,9 @@ function stopServer() {
  * instead, in the window if there is one and in a dialog if there isn't.
  */
 function showStartupError(message) {
-  logLine(`[tempo] ${message}`);
+  logLine(`[doem] ${message}`);
   if (quitting) return;
-  dialog.showErrorBox("Tempo couldn't start", `${message}\n\nDetails: ${logFile()}`);
+  dialog.showErrorBox("Doem couldn't start", `${message}\n\nDetails: ${logFile()}`);
 }
 
 /**
@@ -426,7 +435,7 @@ function showStartupError(message) {
  * has a single, typed onCommand subscription to maintain.
  */
 function sendCommand(command) {
-  mainWindow?.webContents.send("tempo:command", command);
+  mainWindow?.webContents.send("doem:command", command);
 }
 
 /**
@@ -438,6 +447,41 @@ function sendCommand(command) {
  * large part of what makes the menu bar read as a native app's, not a
  * website's.
  */
+let availableUpdate = null;
+function openUpdatePage() {
+  if (availableUpdate) shell.openExternal(availableUpdate.url);
+}
+
+function showUpdateInMenu(version, url) {
+  availableUpdate = { version, url };
+  const item = Menu.getApplicationMenu()?.getMenuItemById("update-available");
+  if (item) {
+    item.label = `Update to ${version}…`;
+    item.visible = true;
+  }
+}
+
+function startUpdateCheck() {
+  if (isDev || process.env.DOEM_NO_UPDATE_CHECK === "1") return;
+  createUpdateChecker({
+    currentVersion: app.getVersion(),
+    fetch: globalThis.fetch,
+    now: Date.now,
+    readSettings: readDesktopSettings,
+    writeSettings: writeDesktopSettings,
+    log: logLine,
+    setMenuUpdate: showUpdateInMenu,
+    notify: (version) => {
+      if (!Notification.isSupported()) return;
+      const n = new Notification({ title: `Doem ${version} is available`, body: "Click to open the release page.", icon: iconPath });
+      liveNotifications.add(n);
+      n.on("click", openUpdatePage);
+      n.on("close", () => liveNotifications.delete(n));
+      n.show();
+    },
+  }).start();
+}
+
 function installMenu() {
   const template = [
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
@@ -451,6 +495,7 @@ function installMenu() {
             await shell.openPath(settingsFile());
           },
         },
+        { id: "update-available", label: "Update…", visible: false, click: () => openUpdatePage() },
         { type: "separator" },
         { role: process.platform === "darwin" ? "close" : "quit" },
       ],
@@ -461,11 +506,13 @@ function installMenu() {
       submenu: [
         { label: "Search", accelerator: "CmdOrCtrl+F", click: () => sendCommand({ type: "focus-search" }) },
         { type: "separator" },
+        { label: "Inbox", accelerator: "CmdOrCtrl+0", click: () => sendCommand({ type: "navigate", path: "/inbox" }) },
         { label: "Today", accelerator: "CmdOrCtrl+1", click: () => sendCommand({ type: "navigate", path: "/" }) },
         { label: "Calendar", accelerator: "CmdOrCtrl+2", click: () => sendCommand({ type: "navigate", path: "/calendar" }) },
         { label: "Tracking", accelerator: "CmdOrCtrl+3", click: () => sendCommand({ type: "navigate", path: "/tracking" }) },
         { label: "Next 7 Days", accelerator: "CmdOrCtrl+4", click: () => sendCommand({ type: "navigate", path: "/upcoming" }) },
         { label: "All Tasks", accelerator: "CmdOrCtrl+5", click: () => sendCommand({ type: "navigate", path: "/all" }) },
+        { label: "Wrap Up the Day", accelerator: "CmdOrCtrl+Shift+E", click: () => sendCommand({ type: "navigate", path: "/wrap" }) },
         { type: "separator" },
         { label: "Settings…", accelerator: "CmdOrCtrl+,", click: () => sendCommand({ type: "navigate", path: "/settings" }) },
       ],
@@ -524,7 +571,7 @@ function formatTrayElapsed(ms) {
 }
 
 // A raw task title can run to a full sentence, and the menu bar has no
-// wrapping — left unbounded it pushes Tempo's own View/Task menus off the
+// wrapping — left unbounded it pushes Doem's own View/Task menus off the
 // right edge of the screen on a 13" display.
 const TRAY_LABEL_MAX = 24;
 
@@ -550,8 +597,29 @@ function updateTrayTitle() {
  */
 function createTray() {
   if (process.platform !== "darwin") return;
-  tray = new Tray(nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 }));
-  tray.setToolTip("Tempo");
+  // Monochrome template mark (black + alpha). Electron picks up the @2x file
+  // beside it by name, and macOS tints a template image white in a dark
+  // menu bar.
+  const trayImage = nativeImage.createFromPath(path.join(__dirname, "..", "build", "trayTemplate.png"));
+  trayImage.setTemplateImage(true);
+  tray = new Tray(trayImage);
+  tray.setToolTip("Doem");
+  // Right-click opens a menu. A permanent tray menu would replace the left-click
+  // toggle below, so the menu is popped up by hand, rebuilt each time so the
+  // timer item always matches the current state.
+  tray.on("right-click", () => {
+    const menu = Menu.buildFromTemplate([
+      { label: "Quick add", click: () => toggleCaptureWindow(true) },
+      {
+        label: trayTimerStatus ? "Stop timer" : "Start timer",
+        enabled: Boolean(toggleTimerMenuItem && toggleTimerMenuItem.enabled),
+        click: () => sendCommand({ type: "toggle-timer" }),
+      },
+      { type: "separator" },
+      { label: "Open Doem", click: () => activateOrCreateWindow() },
+    ]);
+    tray.popUpContextMenu(menu);
+  });
   tray.on("click", () => {
     if (mainWindow && mainWindow.isVisible()) {
       mainWindow.hide();
@@ -566,23 +634,39 @@ function createTray() {
   trayTickInterval = setInterval(updateTrayTitle, 1000);
 }
 
-ipcMain.on("tempo:set-badge", (_event, count) => {
+ipcMain.on("doem:set-badge", (_event, count) => {
   if (process.platform !== "darwin" || !app.dock) return;
   app.dock.setBadge(count > 0 ? String(count) : "");
 });
 
-ipcMain.on("tempo:timer-status", (_event, status) => {
+ipcMain.on("doem:timer-status", (_event, status) => {
   trayTimerStatus = status ? { label: status.label, startedAtMs: new Date(status.startedAt).getTime() } : null;
   updateTrayTitle();
 });
 
-ipcMain.on("tempo:can-toggle-timer", (_event, canToggle) => {
+ipcMain.on("doem:can-toggle-timer", (_event, canToggle) => {
   if (toggleTimerMenuItem) toggleTimerMenuItem.enabled = Boolean(canToggle);
 });
 
-ipcMain.on("tempo:notify", (_event, title, options) => {
+ipcMain.on("doem:notify", (_event, title, options) => {
   if (!Notification.isSupported()) return;
   new Notification({ title, body: options?.body, icon: iconPath }).show();
+});
+
+// Focus countdown finished: one notification and one Dock bounce.
+// "informational" bounces the Dock icon a single time; no loops or timers.
+ipcMain.on("doem:attention", (_event, payload) => {
+  if (!payload || typeof payload !== "object") return;
+  const { title, body } = payload;
+  if (typeof title !== "string" || title.length === 0) return;
+  const safeTitle = title.slice(0, 120);
+  const safeBody = typeof body === "string" ? body.slice(0, 300) : undefined;
+  if (Notification.isSupported()) {
+    new Notification({ title: safeTitle, body: safeBody, icon: iconPath }).show();
+  }
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.bounce("informational");
+  }
 });
 
 async function createWindow() {
@@ -596,7 +680,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    title: "Tempo",
+    title: "Doem",
     icon: iconPath,
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 18, y: 20 },
@@ -615,7 +699,7 @@ async function createWindow() {
 
   mainWindow.once("ready-to-show", () => mainWindow.show());
 
-  // The preload bridge (window.tempo) is attached to this window, not to an
+  // The preload bridge (window.doem) is attached to this window, not to an
   // origin — anything that navigated the window itself off-origin would
   // carry that bridge to a remote page. Nothing renders an external link
   // today, but this closes the door before something does.
@@ -638,6 +722,12 @@ async function createWindow() {
   });
   mainWindow.on("closed", () => {
     mainWindow = null;
+    mainLoaded = false;
+    // Off macOS the app quits with its last window; a hidden capture bar
+    // must not keep it alive.
+    if (process.platform !== "darwin" && captureWindow && !captureWindow.isDestroyed()) {
+      captureWindow.destroy();
+    }
   });
 
   // Shows the window immediately with a branded placeholder rather than
@@ -645,6 +735,8 @@ async function createWindow() {
   await mainWindow.loadURL(SPLASH_URL);
 
   await mainWindow.loadURL(await serverLifecycle.getUrl());
+  mainLoaded = true;
+  flushPendingCommands();
 }
 
 /**
@@ -663,15 +755,405 @@ function activateOrCreateWindow() {
     return;
   }
   createWindow().catch((err) => {
-    showStartupError(`Failed to start Tempo: ${err.message}`);
+    showStartupError(`Failed to start Doem: ${err.message}`);
     app.quit();
   });
 }
 
+// ---------------------------------------------------------------------------
+// Desktop extras: capture bar, reminders, not-tracking nudge, away prompt.
+// ---------------------------------------------------------------------------
+
+/**
+ * Like sendCommand, but never drops: when there is no loaded main window the
+ * command is queued, the window is created, and the queue is flushed once the
+ * app page has loaded.
+ */
+function sendCommandReliably(command) {
+  if (mainWindow && mainLoaded) {
+    mainWindow.webContents.send("doem:command", command);
+    return;
+  }
+  pendingCommands.push(command);
+  if (!mainWindow) activateOrCreateWindow();
+}
+
+function flushPendingCommands() {
+  // Give the page a moment to subscribe to onCommand after its load event.
+  setTimeout(() => {
+    while (pendingCommands.length > 0 && mainWindow && mainLoaded) {
+      mainWindow.webContents.send("doem:command", pendingCommands.shift());
+    }
+  }, 1000);
+}
+
+function showMainWindow() {
+  activateOrCreateWindow();
+}
+
+// Capture shortcut ----------------------------------------------------------
+
+let captureStatus = { shortcut: "Control+Alt+Space", registered: false };
+
+function publishCaptureStatus() {
+  mainWindow?.webContents.send("doem:capture-status", captureStatus);
+}
+
+function registerCaptureShortcut(shortcut) {
+  let registered = false;
+  try {
+    registered = globalShortcut.register(shortcut, () => toggleCaptureWindow());
+  } catch (err) {
+    logLine(`[doem] could not register ${shortcut}: ${err.message}`);
+  }
+  captureStatus = { shortcut, registered };
+  publishCaptureStatus();
+}
+
+function unregisterCaptureShortcut() {
+  if (!captureStatus.registered) return;
+  try {
+    globalShortcut.unregister(captureStatus.shortcut);
+  } catch {
+    // Nothing to undo if it was never held.
+  }
+  captureStatus = { ...captureStatus, registered: false };
+}
+
+function positionCaptureWindow() {
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const { x, y, width, height } = display.workArea;
+  const bounds = captureWindow.getBounds();
+  captureWindow.setPosition(
+    Math.round(x + (width - bounds.width) / 2),
+    Math.round(y + height / 4),
+  );
+}
+
+async function ensureCaptureWindow() {
+  if (captureWindow && !captureWindow.isDestroyed()) return captureWindow;
+  const win = new BrowserWindow({
+    width: 560,
+    height: 64,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    show: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+  captureWindow = win;
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, targetUrl) => {
+    if (!targetUrl.startsWith(`http://${HOST}:`)) {
+      event.preventDefault();
+      shell.openExternal(targetUrl);
+    }
+  });
+  win.on("blur", () => {
+    if (!win.isDestroyed() && win.isVisible()) win.hide();
+  });
+  win.on("closed", () => {
+    if (captureWindow === win) captureWindow = null;
+  });
+  try {
+    await win.loadURL(`${await serverLifecycle.getUrl()}/capture`);
+  } catch (err) {
+    logLine(`[doem] could not load the capture window: ${err.message}`);
+    if (!win.isDestroyed()) win.destroy();
+    if (captureWindow === win) captureWindow = null;
+    return null;
+  }
+  return win;
+}
+
+let captureBusy = false;
+
+async function toggleCaptureWindow(forceShow = false) {
+  if (quitting || captureBusy) return;
+  if (!forceShow && captureWindow && !captureWindow.isDestroyed() && captureWindow.isVisible()) {
+    captureWindow.hide();
+    return;
+  }
+  captureBusy = true;
+  try {
+    const win = await ensureCaptureWindow();
+    if (!win || win.isDestroyed()) return;
+    positionCaptureWindow();
+    win.show();
+    win.focus();
+  } finally {
+    captureBusy = false;
+  }
+}
+
+ipcMain.on("doem:capture-close", () => {
+  if (captureWindow && !captureWindow.isDestroyed()) captureWindow.hide();
+});
+
+ipcMain.on("doem:capture-saved", () => {
+  sendCommand({ type: "refresh-tasks" });
+});
+
+ipcMain.handle("doem:get-capture-status", () => captureStatus);
+
+// Reminders -----------------------------------------------------------------
+
+const reminderSchedule = createReminderSchedule();
+// Live notifications stay referenced until closed or acted on, or they can be
+// garbage collected and never fire their handlers.
+const liveNotifications = new Set();
+let reminderInterval = null;
+
+function sanitiseReminders(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const item of list.slice(0, 500)) {
+    if (!item || typeof item !== "object") continue;
+    const { taskId, title, scheduled, dueTime, leadMinutes } = item;
+    if (typeof taskId !== "string" || typeof title !== "string") continue;
+    if (typeof scheduled !== "string" || typeof dueTime !== "string") continue;
+    const lead = Number.isFinite(leadMinutes) ? Math.min(Math.max(Math.round(leadMinutes), 0), 1440) : 0;
+    out.push({
+      taskId: taskId.slice(0, 80),
+      title: title.slice(0, 200),
+      scheduled: scheduled.slice(0, 10),
+      dueTime: dueTime.slice(0, 5),
+      leadMinutes: lead,
+    });
+  }
+  return out;
+}
+
+ipcMain.on("doem:set-reminders", (_event, list) => {
+  reminderSchedule.setReminders(sanitiseReminders(list));
+});
+
+function showReminder(event) {
+  if (!Notification.isSupported()) return;
+  const notification = new Notification({
+    title: event.title,
+    body: event.body,
+    icon: iconPath,
+    actions: [
+      { type: "button", text: "Start" },
+      { type: "button", text: "Snooze 15m" },
+      { type: "button", text: "Tomorrow" },
+    ],
+  });
+  liveNotifications.add(notification);
+  const release = () => liveNotifications.delete(notification);
+  notification.on("action", (_e, index) => {
+    if (index === 0) {
+      sendCommandReliably({ type: "reminder-start", taskId: event.taskId });
+      reminderSchedule.handled(event.taskId);
+    } else if (index === 1) {
+      reminderSchedule.snooze(event.taskId, new Date());
+    } else if (index === 2) {
+      sendCommandReliably({ type: "reminder-tomorrow", taskId: event.taskId });
+      reminderSchedule.handled(event.taskId);
+    }
+    release();
+  });
+  notification.on("click", () => {
+    showMainWindow();
+    reminderSchedule.handled(event.taskId);
+    release();
+  });
+  notification.on("close", release);
+  notification.show();
+}
+
+function reminderTick() {
+  for (const event of reminderSchedule.due(new Date())) showReminder(event);
+}
+
+// Not-tracking nudge and away prompt ----------------------------------------
+
+const nudgeCounter = createNudgeCounter();
+const awayWatcher = createAwayWatcher();
+let screenLocked = false;
+let desktopTickInterval = null;
+let awayDialogOpen = false;
+
+// Claude Code awareness: off by default, read-only scan, never writes under ~/.claude.
+let claudeAwareness = false;
+let claudeSessions = [];
+let claudeInterval = null;
+const claudeWaits = createWaitTracker();
+let claudeScanBusy = false;
+
+function showClaudeWaiting(session) {
+  if (!Notification.isSupported()) return;
+  const { title, body } = waitingNotification(session);
+  const notification = new Notification({ title, body, icon: iconPath });
+  liveNotifications.add(notification);
+  const release = () => liveNotifications.delete(notification);
+  notification.on("click", () => {
+    showMainWindow();
+    release();
+  });
+  notification.on("close", release);
+  notification.show();
+}
+
+async function refreshClaudeSessions() {
+  if (!claudeAwareness || claudeScanBusy) return;
+  claudeScanBusy = true;
+  try {
+    const root = path.join(os.homedir(), ...PROJECTS_SUBPATH);
+    const now = new Date();
+    const since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sessions = await scanClaudeSessions({ root, since, now });
+    if (!claudeAwareness) return;
+    claudeSessions = sessions;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("doem:claude-sessions", sessions);
+    }
+    for (const session of claudeWaits.update(sessions, new Date())) showClaudeWaiting(session);
+  } catch (err) {
+    logLine(`[doem] claude scan failed: ${err && err.message}`);
+  } finally {
+    claudeScanBusy = false;
+  }
+}
+
+ipcMain.handle("doem:get-claude-sessions", () => (claudeAwareness ? claudeSessions : []));
+
+ipcMain.on("doem:set-desktop-settings", (_event, settings) => {
+  if (!settings || typeof settings !== "object") return;
+  const { captureShortcut, nudgeMinutes } = settings;
+  if (typeof nudgeMinutes === "number" && Number.isFinite(nudgeMinutes) && nudgeMinutes > 0) {
+    nudgeCounter.setThreshold(Math.min(Math.round(nudgeMinutes), 1440));
+  } else {
+    nudgeCounter.setThreshold(null);
+  }
+  if (
+    typeof captureShortcut === "string" &&
+    captureShortcut.trim() !== "" &&
+    captureShortcut.length <= 64 &&
+    captureShortcut !== captureStatus.shortcut
+  ) {
+    unregisterCaptureShortcut();
+    registerCaptureShortcut(captureShortcut);
+    writeDesktopSettings({ captureShortcut });
+  }
+  const nextClaude = settings.claudeAwareness === true;
+  if (nextClaude !== claudeAwareness) {
+    claudeAwareness = nextClaude;
+    if (nextClaude) {
+      if (claudeInterval) clearInterval(claudeInterval);
+      claudeInterval = setInterval(refreshClaudeSessions, 60_000);
+      refreshClaudeSessions();
+    } else {
+      if (claudeInterval) clearInterval(claudeInterval);
+      claudeInterval = null;
+      claudeSessions = [];
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("doem:claude-sessions", []);
+      }
+    }
+  }
+});
+
+function showNudge(minutes) {
+  if (!Notification.isSupported()) return;
+  const { title, body } = nudgeMessage(minutes);
+  const notification = new Notification({ title, body, icon: iconPath });
+  liveNotifications.add(notification);
+  const release = () => liveNotifications.delete(notification);
+  notification.on("click", () => {
+    showMainWindow();
+    sendCommandReliably({ type: "navigate", path: "/tracking" });
+    release();
+  });
+  notification.on("close", release);
+  notification.show();
+}
+
+async function showAwayPrompt(event) {
+  if (awayDialogOpen || !trayTimerStatus) return;
+  awayDialogOpen = true;
+  try {
+    const minutes = (event.awayTo.getTime() - event.awayFrom.getTime()) / 60000;
+    const text = awayPromptText(minutes, trayTimerStatus.label);
+    const options = {
+      type: "question",
+      message: text.message,
+      buttons: text.buttons,
+      defaultId: 0,
+      cancelId: 0,
+    };
+    const { response } = mainWindow
+      ? await dialog.showMessageBox(mainWindow, options)
+      : await dialog.showMessageBox(options);
+    sendCommandReliably({
+      type: "away",
+      choice: ["keep", "break", "discard"][response] ?? "keep",
+      awayFrom: event.awayFrom.toISOString(),
+      awayTo: event.awayTo.toISOString(),
+    });
+  } finally {
+    awayDialogOpen = false;
+  }
+}
+
+function desktopTick() {
+  const now = new Date();
+  const tracking = trayTimerStatus !== null;
+  let idleSeconds = 0;
+  try {
+    idleSeconds = powerMonitor.getSystemIdleTime();
+  } catch {
+    idleSeconds = 0;
+  }
+  const nudge = nudgeCounter.tick({ tracking, locked: screenLocked, idleSeconds });
+  if (nudge.notify) showNudge(nudge.minutes);
+  const away = awayWatcher.idleTick({ idleSeconds, now, tracking });
+  if (away) showAwayPrompt(away).catch((err) => logLine(`[doem] away prompt failed: ${err.message}`));
+}
+
+function startDesktopExtras() {
+  const settings = readDesktopSettings();
+  const shortcut =
+    typeof settings.captureShortcut === "string" && settings.captureShortcut ? settings.captureShortcut : "Control+Alt+Space";
+  registerCaptureShortcut(shortcut);
+
+  powerMonitor.on("lock-screen", () => {
+    screenLocked = true;
+    awayWatcher.lock(new Date(), trayTimerStatus !== null);
+  });
+  powerMonitor.on("unlock-screen", () => {
+    screenLocked = false;
+    nudgeCounter.reset();
+    const away = awayWatcher.unlock(new Date(), trayTimerStatus !== null);
+    if (away) showAwayPrompt(away).catch((err) => logLine(`[doem] away prompt failed: ${err.message}`));
+  });
+
+  reminderInterval = setInterval(reminderTick, 30 * 1000);
+  desktopTickInterval = setInterval(desktopTick, 60 * 1000);
+}
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+
 app.whenReady().then(() => {
+  for (const move of migratedUserData) logLine(`[doem] migrated ${move}`);
   installMenu();
   installContextMenu();
   createTray();
+  startDesktopExtras();
+  startUpdateCheck();
   if (isDev && process.platform === "darwin" && app.dock) {
     app.dock.setIcon(iconPath);
   }
@@ -689,5 +1171,10 @@ app.on("before-quit", () => {
   quitting = true;
   stopServer();
   if (trayTickInterval) clearInterval(trayTickInterval);
+  if (reminderInterval) clearInterval(reminderInterval);
+  if (desktopTickInterval) clearInterval(desktopTickInterval);
+  if (claudeInterval) clearInterval(claudeInterval);
+  // A hidden always-on-top window must not hold the app open.
+  if (captureWindow && !captureWindow.isDestroyed()) captureWindow.destroy();
 });
 process.on("exit", stopServer);

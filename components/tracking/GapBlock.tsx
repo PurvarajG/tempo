@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
-import MetaLabel from "./MetaLabel";
 
 /**
- * The only dashed border in the system — absence must never look like another
- * category. Transparent, no fill, mono label. Click fills it.
+ * An outlined free block (soft.html `.blk.free`): no fill, ink-3 text. The
+ * hairline is dashed, the one dashed element in the tracking system, so
+ * absence never reads as another category. Click fills it.
  */
 export default function GapBlock({
   label,
@@ -21,10 +21,10 @@ export default function GapBlock({
       type="button"
       onClick={onClick}
       title={label}
-      className={`flex items-center justify-center truncate rounded border border-dashed border-border px-2 text-left transition-colors hover:border-accent/40 hover:bg-accent/[0.035] ${className}`}
+      className={`flex items-center truncate rounded-tile border border-dashed border-line-2 px-2 text-left text-meta text-ink-3 transition-colors hover:bg-sunk ${className}`}
       style={style}
     >
-      <MetaLabel className="truncate">{label}</MetaLabel>
+      <span className="truncate">{label}</span>
     </button>
   );
 }

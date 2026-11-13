@@ -1,68 +1,115 @@
 "use client";
 
-import { useMemo } from "react";
-import { DAY_END_HOUR } from "@/lib/types";
-import { addDays, toISODate } from "@/lib/parse";
-import { fmt, rank } from "@/lib/format";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toISODate } from "@/lib/parse";
+import { fmtDayLong, fmtWeekday } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
-import { todaySummary } from "@/lib/summary";
 import { useTasks } from "@/lib/store-context";
-import PageShell from "./ui/PageShell";
-import MetricStrip from "./ui/MetricStrip";
-import FocusCard from "./ui/FocusCard";
-import SectionLabel from "./SectionLabel";
-import TaskRow from "./TaskRow";
-import QuickAdd from "./QuickAdd";
-import GeneralNote from "./today/GeneralNote";
-import QuickTodos from "./today/QuickTodos";
-import TaskGroup from "./today/TaskGroup";
-import DashboardTimeline from "./today/DashboardTimeline";
+import { withSettingsDefaults } from "@/lib/store-context/use-tracking-config";
+import { capacity, headline, inboxCount, isPastWrap, layoutToday } from "@/lib/today";
+import { momentum } from "@/lib/momentum";
+import { dayPlan } from "@/lib/day-plan";
+import PageHead from "./ui/PageHead";
+import Segmented from "./ui/Segmented";
+import Icon from "./ui/Icon";
+import Button from "./ui/Button";
 import RailPanel from "./ui/RailPanel";
+import QuickAdd from "./QuickAdd";
+import TodayKpis from "./today/TodayKpis";
+import MomentumCard from "./today/MomentumCard";
+import DaySchedule from "./today/DaySchedule";
+import TrackedWeek from "./today/TrackedWeek";
+import GeneralNote from "./today/GeneralNote";
+import DashboardTimeline from "./today/DashboardTimeline";
+import TodayCard from "./today/TodayCard";
+import TodayBoard from "./today/TodayBoard";
+
+type View = "list" | "board" | "day";
+
+const NOTEPAD_OPEN = "today-notepad:open";
+
+// The end-of-day wrap (Phase 10B); the button shows after the wrap-up hour.
+const wrapUpHref = "/wrap";
+
+const skipKey = (todayISO: string) => `doem.today.skip.${todayISO}`;
+
+function readSkip(todayISO: string): Set<string> {
+  if (!todayISO) return new Set();
+  try {
+    const raw = sessionStorage.getItem(skipKey(todayISO));
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSkip(todayISO: string, ids: Set<string>) {
+  try {
+    sessionStorage.setItem(skipKey(todayISO), JSON.stringify([...ids]));
+  } catch {
+    // Session storage can be unavailable; the skip then lasts until reload.
+  }
+}
 
 export default function Today() {
-  const { tasks, stages, timeEntries, running, ready, completeTask, patchTask, reopenTask, settings, patchSettings } =
-    useTasks();
+  const { tasks, projects, timeEntries, running, ready, settings, patchSettings } = useTasks();
 
   // Null until the browser takes over, so the server never renders a date the
   // client would disagree with.
   const now = useNow();
   const todayISO = now ? toISODate(now) : "";
 
-  const summary = useMemo(
-    () => todaySummary(tasks, stages, timeEntries, todayISO),
-    [tasks, stages, timeEntries, todayISO],
+  const searchParams = useSearchParams();
+  const initialView = searchParams?.get("view");
+  const [view, setViewState] = useState<View>(initialView === "board" || initialView === "day" ? initialView : "list");
+  // Keep the tab in the URL without a navigation: Next folds replaceState into useSearchParams.
+  const setView = (next: View) => {
+    setViewState(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === "list") url.searchParams.delete("view");
+      else url.searchParams.set("view", next);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // The URL is a convenience only.
+    }
+  };
+  const [skipState, setSkipState] = useState<{ iso: string; ids: Set<string> } | null>(null);
+  const skipIds = useMemo(
+    () => (skipState && skipState.iso === todayISO ? skipState.ids : readSkip(todayISO)),
+    [skipState, todayISO],
   );
 
-  const today = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.status === "open" && todayISO && t.scheduled <= todayISO)
-        .sort((a, b) => rank(a) - rank(b) || a.scheduled.localeCompare(b.scheduled)),
-    [tasks, todayISO],
-  );
-
-  const doneToday = useMemo(
-    () => tasks.filter((t) => t.status === "done" && t.completedAt?.slice(0, 10) === todayISO),
-    [tasks, todayISO],
-  );
+  const runningTaskId = running?.taskId ?? null;
 
   if (!now) {
     return (
-      <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
-        <div className="h-10 w-64 rounded-lg bg-muted" />
+      <div className="mx-auto max-w-6xl px-8 py-8">
+        <div className="h-10 w-64 rounded-card bg-sunk" />
       </div>
     );
   }
 
-  const committed = today.reduce((sum, t) => sum + t.minutes, 0);
-  const dayEnd = new Date(now);
-  dayEnd.setHours(DAY_END_HOUR, 0, 0, 0);
-  const minutesLeft = Math.max(0, Math.round((dayEnd.getTime() - now.getTime()) / 60_000));
-  const overcommitted = committed > minutesLeft;
-  const fill = minutesLeft ? Math.min(100, (committed / minutesLeft) * 100) : 100;
-  const runningTask = running ? tasks.find((t) => t.id === running.taskId) : null;
+  const layout = layoutToday(tasks, todayISO, now, runningTaskId, skipIds);
+  const cap = capacity(tasks, todayISO, now, settings);
+  const openTasks = [
+    ...(layout.upNext ? [layout.upNext.task] : []),
+    ...layout.committed,
+    ...layout.couldAlso,
+    ...layout.carried,
+  ];
+  const planOpen = [...(layout.upNext ? [layout.upNext.task] : []), ...layout.committed, ...layout.couldAlso];
 
-  const [upNext, ...rest] = today;
+  const onSomethingElse = () => {
+    const id = layout.upNext?.task.id;
+    if (!id) return;
+    const ids = new Set(skipIds);
+    ids.add(id);
+    writeSkip(todayISO, ids);
+    setSkipState({ iso: todayISO, ids });
+  };
 
   const collapsedModules = settings?.collapsedModules ?? [];
   // Guarded the same way Tracking's own collapse toggle is (app/tracking/
@@ -71,117 +118,66 @@ export default function Today() {
   // before settings has arrived would persist a single-entry array and wipe
   // out everything already collapsed elsewhere (including Tracking's
   // backfilled records/rollups/signals default).
-  const toggleRailPanel = (key: string) => {
+  const toggleNotepad = () => {
     if (!settings) return;
     patchSettings({
-      collapsedModules: collapsedModules.includes(key)
-        ? collapsedModules.filter((k) => k !== key)
-        : [...collapsedModules, key],
+      collapsedModules: collapsedModules.includes(NOTEPAD_OPEN)
+        ? collapsedModules.filter((k) => k !== NOTEPAD_OPEN)
+        : [...collapsedModules, NOTEPAD_OPEN],
     });
   };
 
+  const showWrapUp = isPastWrap(now, withSettingsDefaults(settings).wrapHour);
+
   return (
-    <PageShell
-      label="Today"
-      pulse
-      maxWidth="max-w-6xl shell:max-w-none"
+    <PageHead
       workspaceTestId="today-workspace"
-      title={
+      title={fmtWeekday(todayISO)}
+      dim={fmtDayLong(todayISO)}
+      subtitle={headline(openTasks.length, cap)}
+      actions={
         <>
-          <span className="gradient-text">
-            {now.toLocaleDateString(undefined, { weekday: "long" })}
-          </span>{" "}
-          {now.toLocaleDateString(undefined, { day: "numeric", month: "long" })}
+          {showWrapUp && (
+            <a href={wrapUpHref}>
+              <Button variant="chip" size="sm" tabIndex={-1}>
+                Wrap up the day
+              </Button>
+            </a>
+          )}
+          <Segmented<View>
+            ariaLabel="Today view"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "list", label: "List", icon: <Icon name="list" size={16} /> },
+              { value: "board", label: "Board", icon: <Icon name="board" size={16} /> },
+              { value: "day", label: "Day", icon: <Icon name="cal" size={16} /> },
+            ]}
+          />
         </>
       }
       headerExtra={
-        ready && (
-          <>
-            <MetricStrip
-              className="mt-6 lg:mt-3"
-              items={[
-                { key: "active", value: String(today.length), label: "Active" },
-                ...(summary.overdue.length > 0
-                  ? [{ key: "overdue", value: String(summary.overdue.length), label: "Overdue" }]
-                  : []),
-                { key: "planned", value: fmt(committed), label: "Planned" },
-                { key: "capacity-left", value: fmt(minutesLeft), label: "Capacity left" },
-                {
-                  key: "recorded-today",
-                  value: fmt(summary.recordedTodayMinutes),
-                  label: "Recorded today",
-                },
-                ...(runningTask
-                  ? [
-                      {
-                        key: "timing",
-                        value: <span className="inline-block max-w-40 truncate align-bottom">{runningTask.title}</span>,
-                        label: "Timing",
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-
-            <div className="mt-4 lg:mt-2">
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-accent to-accent-secondary transition-all duration-500"
-                  style={{ width: `${fill}%` }}
-                />
-              </div>
-              {overcommitted && (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  More than fits. Push something to tomorrow — that&apos;s planning, not failing.
-                </p>
-              )}
-            </div>
-          </>
-        )
+        ready && <TodayKpis todayISO={todayISO} cap={cap} carriedCount={layout.carried.length} />
       }
       rail={
         <>
-          <RailPanel
-            title={summary.dueToday.length > 0 ? `Due today · ${summary.dueToday.length}` : "Due today"}
-            collapsed={collapsedModules.includes("today-due")}
-            onToggleCollapse={() => toggleRailPanel("today-due")}
-            empty={summary.dueToday.length === 0}
-            emptyText="Nothing is scheduled for today."
-          >
-            <TaskGroup
-              label="Due today"
-              tasks={summary.dueToday}
-              emptyText="Nothing is scheduled for today."
-              hideLabel
-            />
-          </RailPanel>
-          <RailPanel
-            title={summary.blocked.length > 0 ? `Blocked · ${summary.blocked.length}` : "Blocked"}
-            collapsed={collapsedModules.includes("today-blocked")}
-            onToggleCollapse={() => toggleRailPanel("today-blocked")}
-            empty={summary.blocked.length === 0}
-            emptyText="Nothing is waiting on anything."
-          >
-            <TaskGroup
-              label="Blocked"
-              tasks={summary.blocked}
-              emptyText="Nothing is waiting on anything."
-              hideLabel
-            />
-          </RailPanel>
-          <RailPanel
-            title="Notepad"
-            collapsed={collapsedModules.includes("today-notepad")}
-            onToggleCollapse={() => toggleRailPanel("today-notepad")}
-          >
+          <MomentumCard
+            data={momentum({
+              done: layout.done,
+              open: openTasks,
+              upNext: layout.upNext?.task ?? null,
+              tasks,
+              projects,
+              entries: timeEntries,
+              todayISO,
+              dayDone: cap.dayDone,
+            })}
+            todayISO={todayISO}
+          />
+          <DaySchedule plan={dayPlan({ open: planOpen, now, endHour: cap.endHour, runningTaskId })} />
+          <TrackedWeek todayISO={todayISO} />
+          <RailPanel title="Notepad" collapsed={!collapsedModules.includes(NOTEPAD_OPEN)} onToggleCollapse={toggleNotepad}>
             <GeneralNote compact hideLabel />
-          </RailPanel>
-          <RailPanel
-            title="Quick list"
-            collapsed={collapsedModules.includes("today-quicklist")}
-            onToggleCollapse={() => toggleRailPanel("today-quicklist")}
-          >
-            <QuickTodos hideLabel />
           </RailPanel>
         </>
       }
@@ -190,78 +186,25 @@ export default function Today() {
           document flow. From `rail:` (1200px) up, the primary column
           scrolls independently within the shell's two-column grid; between
           900 and 1200 it shares one scrolling region with the stacked
-          rail — see PageShell.tsx. */}
-      <div data-testid="today-primary-pane" data-density="compact" className="min-w-0">
-        <QuickAdd id="tempo-quick-add" />
+          rail, see PageHead.tsx. */}
+      <div data-testid="today-primary-pane" data-density="compact" className="flex min-w-0 flex-col gap-4">
+        <QuickAdd id="doem-quick-add" autoFocus={false} />
 
-        <div className="mt-8 lg:mt-6">
-          <DashboardTimeline todayISO={todayISO} />
-        </div>
-
-        {ready && today.length === 0 && (
-          <p className="mt-10 rounded-xl border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-            Nothing on today. Either you&apos;re done, or nothing&apos;s captured yet.
-          </p>
-        )}
-
-        {/* The one thing. Inverted so it can't be confused with the list. */}
-        {upNext && (
-          <section className="mt-10 lg:mt-6">
-            <FocusCard
-              tag="Up next"
-              title={upNext.title}
-              meta={[
-                fmt(upNext.minutes),
-                ...(upNext.priority > 0 ? [`P${upNext.priority}`] : []),
-              ]}
-              primaryLabel="Mark done"
-              onPrimary={() => completeTask(upNext.id)}
-              secondaryLabel="Not today"
-              onSecondary={() => patchTask(upNext.id, { scheduled: addDays(todayISO, 1) })}
+        <div>
+          {view === "list" ? (
+            <TodayCard
+              layout={layout}
+              todayISO={todayISO}
+              inboxCount={inboxCount(tasks, todayISO)}
+              onSomethingElse={onSomethingElse}
             />
-          </section>
-        )}
-
-        {rest.length > 0 && (
-          <section className="mt-12 lg:mt-6">
-            <SectionLabel>Then</SectionLabel>
-            <ul className="mt-5 space-y-2.5 lg:mt-3 lg:space-y-1.5">
-              {rest.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  todayISO={todayISO}
-                  compact
-                  onPushTomorrow={() => patchTask(t.id, { scheduled: addDays(todayISO, 1) })}
-                />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {doneToday.length > 0 && (
-          <details className="mt-8">
-            <summary className="cursor-pointer list-none">
-              <SectionLabel>Done · {doneToday.length}</SectionLabel>
-            </summary>
-            <ul className="mt-5 space-y-1.5">
-              {doneToday.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-muted-foreground"
-                >
-                  <button
-                    onClick={() => reopenTask(t.id)}
-                    aria-label={`Reopen ${t.title}`}
-                    className="size-4 shrink-0 rounded-full bg-gradient-to-br from-accent to-accent-secondary opacity-40 transition-opacity hover:opacity-100"
-                  />
-                  <span className="truncate line-through">{t.title}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
+          ) : view === "board" ? (
+            <TodayBoard layout={layout} todayISO={todayISO} runningTaskId={runningTaskId} />
+          ) : (
+            <DashboardTimeline todayISO={todayISO} />
+          )}
+        </div>
       </div>
-    </PageShell>
+    </PageHead>
   );
 }

@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tempo Soft Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+:root{
+  --scene-1:#b9c3ec; --scene-2:#dfe1f1; --scene-3:#f3e4d4; --scene-4:#e9c9a8;
+  --shell:rgba(246,246,243,.78);
+  --surface:#ffffff;
+  --raised:#ffffff;
+  --sunk:#f1f1ee;
+  --ink:#141519;
+  --ink-2:#4f5159;
+  --ink-3:#64666d;
+  --ink-dim:#8d8f97;
+  --line:rgba(20,21,25,.07);
+  --line-2:rgba(20,21,25,.12);
+  --accent:#4a4ae8; --accent-ink:#fff; --accent-soft:rgba(74,74,232,.09);
+  --hi:#bd2f2f; --hi-bg:rgba(214,69,69,.08);
+  --med:#8a5d00; --med-bg:rgba(201,140,20,.10);
+  --ok:#117a45;
+  --pm:#6466e6; --pc:#2b7f67; --ph:#8f6a28;
+  --off:#e7e7e3; --glow-a:#4f50ee; --glow-b:#a8c8ff;
+  --shadow-sm:0 1px 1px rgba(20,20,30,.04),0 1px 3px rgba(20,20,30,.05);
+  --shadow-md:0 1px 2px rgba(20,20,30,.04),0 6px 16px -4px rgba(20,20,30,.07),0 20px 40px -16px rgba(20,20,30,.10);
+  --shadow-win:0 1px 0 rgba(255,255,255,.6) inset,0 30px 80px -20px rgba(40,40,90,.28),0 12px 24px -12px rgba(40,40,90,.12);
+}
+:root[data-theme="dark"]{
+  --scene-1:#1a1f45; --scene-2:#0f1122; --scene-3:#14121a; --scene-4:#2b1d2e;
+  --shell:rgba(18,19,24,.72);
+  --surface:#17181c; --raised:#1d1e23; --sunk:#202127;
+  --ink:#ededef; --ink-2:#a6a8b0; --ink-3:#8d8f97; --ink-dim:#75777f;
+  --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.11);
+  --accent:#7d7eff; --accent-ink:#0b0b18; --accent-soft:rgba(125,126,255,.14);
+  --hi:#f07a7a; --hi-bg:rgba(240,122,122,.12);
+  --med:#e6b84f; --med-bg:rgba(230,184,79,.12);
+  --ok:#4ade80; --off:#26272d; --glow-a:#3c3dd6; --glow-b:#1c2f6b;
+  --pm:#7375ee; --pc:#3a8f75; --ph:#9c7631;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+  --shadow-md:0 1px 2px rgba(0,0,0,.4),0 10px 28px -10px rgba(0,0,0,.6);
+  --shadow-win:0 1px 0 rgba(255,255,255,.06) inset,0 40px 100px -24px rgba(0,0,0,.85);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --scene-1:#1a1f45; --scene-2:#0f1122; --scene-3:#14121a; --scene-4:#2b1d2e;
+    --shell:rgba(18,19,24,.72); --surface:#17181c; --raised:#1d1e23; --sunk:#202127;
+    --ink:#ededef; --ink-2:#a6a8b0; --ink-3:#8d8f97; --ink-dim:#75777f; --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.11);
+    --accent:#7d7eff; --accent-ink:#0b0b18; --accent-soft:rgba(125,126,255,.14);
+    --hi:#f07a7a; --hi-bg:rgba(240,122,122,.12); --med:#e6b84f; --med-bg:rgba(230,184,79,.12); --ok:#4ade80; --off:#26272d; --glow-a:#3c3dd6; --glow-b:#1c2f6b;
+    --pm:#7375ee; --pc:#3a8f75; --ph:#9c7631;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--scene-2)}
+body{font-family:"Geist",system-ui,sans-serif;color:var(--ink);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  min-height:100vh;padding:40px;position:relative;
+  background:
+    radial-gradient(70% 55% at 15% 0%,var(--scene-1) 0%,transparent 70%),
+    radial-gradient(60% 50% at 90% 100%,var(--scene-4) 0%,transparent 70%),
+    linear-gradient(180deg,var(--scene-2) 0%,var(--scene-3) 100%);
+  background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::selection{background:color-mix(in srgb,var(--accent) 24%,transparent);color:var(--ink)}
+*{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.mono{font-family:"Geist Mono",ui-monospace,monospace}
+.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+
+/* window */
+.win{position:relative;max-width:1400px;margin:0 auto;background:var(--shell);backdrop-filter:blur(28px) saturate(1.3);
+  -webkit-backdrop-filter:blur(28px) saturate(1.3);border-radius:28px;box-shadow:var(--shadow-win);border:1px solid rgba(255,255,255,.5);
+  display:grid;grid-template-columns:264px 1fr;min-height:calc(100vh - 80px);overflow:hidden}
+:root[data-theme="dark"] .win{border-color:rgba(255,255,255,.07)}
+
+/* sidebar */
+.side{padding:24px 16px 16px;display:flex;flex-direction:column;gap:24px}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px;font-weight:600;font-size:20px;letter-spacing:-.03em}
+.mark{width:32px;height:32px;border-radius:10px;background:var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px}
+.mark i{border-radius:50%;background:var(--surface)}
+.mark i:nth-child(4){background:var(--accent)}
+.brand .collapse{margin-left:auto;color:var(--ink-3);width:32px;height:32px;display:grid;place-items:center;border-radius:8px}
+.lbl-s{font-size:12px;color:var(--ink-3);padding:0 12px 8px;display:flex;justify-content:space-between;align-items:center}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;color:var(--ink-2);text-decoration:none;font-size:15px;
+  letter-spacing:-.01em;transition:background .15s ease-out,color .15s ease-out}
+.nav a:hover{background:var(--line);color:var(--ink)}
+.nav a.on{background:var(--raised);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm),0 0 0 1px var(--line)}
+.nav .n{margin-left:auto;font-size:12px;color:var(--ink-3);font-family:"Geist Mono",monospace}
+.logo{width:22px;height:22px;border-radius:7px;flex:none;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.12)}
+.tree{position:relative;margin-left:22px;padding-left:12px;display:flex;flex-direction:column;gap:2px}
+.tree::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:1px;background:var(--line-2)}
+.tree a{height:36px;font-size:14px}
+.nav .muted{color:var(--ink-3);font-size:14px}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.timer{background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm),0 0 0 1px var(--line)}
+.t-top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)}
+.live{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.t-name{font-size:13px;font-weight:500;margin-top:8px}
+.t-row{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.clock{font-size:24px;letter-spacing:-.03em;font-weight:500;font-variant-numeric:tabular-nums}
+.stop{width:32px;height:32px;border-radius:10px;background:var(--sunk);display:grid;place-items:center}
+.stop i{width:10px;height:10px;border-radius:2px;background:var(--ink)}
+.me{display:flex;align-items:center;gap:12px;padding:8px;border-radius:14px}
+.avatar{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:600;font-size:12px;
+  background:linear-gradient(140deg,#c9c9f7,#efd9c2);color:#2b2b55}
+.me b{display:block;font-weight:500;font-size:13px}
+.me div span{font-size:12px;color:var(--ink-3)}
+.me .i{margin-left:auto;color:var(--ink-3)}
+
+/* main */
+.main{background:var(--surface);margin:8px 8px 8px 0;border-radius:22px;box-shadow:0 0 0 1px var(--line),var(--shadow-sm);display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;align-items:center;gap:12px;height:64px;padding:0 24px;border-bottom:1px solid var(--line)}
+.crumb{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-3)}
+.crumb b{color:var(--ink);font-weight:500}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--sunk);border-radius:999px;padding:0 6px 0 14px;height:36px;width:300px;color:var(--ink-3);font-size:13px}
+.kbd{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:999px;background:var(--surface);box-shadow:0 0 0 1px var(--line);color:var(--ink-3)}
+.icon-btn{width:36px;height:36px;border-radius:999px;display:grid;place-items:center;color:var(--ink-2);box-shadow:0 0 0 1px var(--line);transition:background .15s ease-out}
+.icon-btn:hover{background:var(--sunk)}
+.search{text-align:left;transition:box-shadow .15s ease-out}
+.search:hover{box-shadow:inset 0 0 0 1px var(--line-2)}
+.theme .sun{display:none}
+:root[data-theme="dark"] .theme .sun{display:block}
+:root[data-theme="dark"] .theme .moon{display:none}
+
+.page{padding:32px;display:flex;flex-direction:column;gap:24px}
+.head{display:flex;align-items:flex-end;gap:24px}
+.head h1{font-size:34px;font-weight:500;letter-spacing:-.035em;line-height:1.05}
+.head h1 .dim{font-weight:400;color:var(--ink-dim)}
+.head p{margin-top:8px;color:var(--ink-3);font-size:15px}
+.seg{display:inline-flex;gap:2px;padding:4px;background:var(--sunk);border-radius:14px;margin-left:auto}
+.seg button{display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:10px;font-size:14px;color:var(--ink-3);transition:background .2s ease-out,color .2s ease-out}
+.seg button:not(.on):hover{color:var(--ink-2)}
+.seg button.on{background:var(--raised);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm),0 0 0 1px var(--line)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi{border-radius:16px;box-shadow:0 0 0 1px var(--line);background:var(--surface);overflow:hidden}
+.kpi .k-body{padding:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.cap{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-family:"Geist Mono",monospace}
+.kpi .v{font-family:"Geist Mono",monospace;font-size:24px;font-weight:500;letter-spacing:-.04em;margin-top:8px;line-height:1}
+.kpi .v small{font-size:13px;color:var(--ink-3);letter-spacing:0;margin-left:4px;font-family:"Geist",sans-serif}
+.spark{display:flex;align-items:flex-end;gap:2px;height:28px}
+.spark i{width:2px;background:var(--line-2);border-radius:1px}
+.spark i.on{background:var(--ink)}
+.kpi .k-foot{display:flex;justify-content:space-between;padding:8px 16px;background:var(--sunk);font-size:12px;color:var(--ink-3)}
+.kpi .k-foot b{font-weight:500;color:var(--ink-2)}
+.kpi .k-foot b.up{color:var(--ok)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.composer{display:flex;align-items:center;gap:12px;height:52px;padding:0 8px 0 16px;border-radius:14px;background:var(--surface);
+  box-shadow:0 0 0 1px var(--line-2),var(--shadow-sm);transition:box-shadow .15s ease-out}
+.composer .plus{color:var(--ink-3)}
+.composer input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:14px;color:var(--ink)}
+.composer input::placeholder{color:var(--ink-3)}
+.composer:focus-within{box-shadow:0 0 0 1px var(--accent),0 0 0 4px var(--accent-soft)}
+.tokens{display:flex;gap:4px}
+.tok{font-size:11px;padding:4px 8px;border-radius:999px;background:var(--sunk);color:var(--ink-3)}
+
+.card{background:var(--surface);border-radius:18px;box-shadow:0 0 0 1px var(--line),var(--shadow-sm)}
+.card-h{display:flex;align-items:center;gap:8px;padding:16px 16px 8px}
+.ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;box-shadow:0 0 0 1px var(--line);color:var(--ink-2)}
+.card-h .lbl{font-size:15px;font-weight:500;letter-spacing:-.01em}
+.card-h .count{font-size:14px;color:var(--ink-3)}
+.card-h .r{margin-left:auto;font-size:12px;color:var(--ink-3)}
+
+.list{padding:0 8px 8px;display:flex;flex-direction:column}
+.task{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-radius:12px;transition:background .15s ease-out}
+.task + .task{box-shadow:0 -1px 0 var(--line)}
+.task:hover{background:color-mix(in srgb,var(--sunk) 60%,transparent)}
+.chk{width:18px;height:18px;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--line-2);background:var(--surface)}
+.ttl{font-size:14px;font-weight:500;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;align-items:center;gap:12px;margin-top:4px;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+.meta span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.meta .i{width:13px;height:13px}
+.prio{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px}
+.prio .i{width:12px;height:12px;fill:currentColor}
+.prio.hi{color:var(--hi);background:var(--hi-bg)}
+.prio.med{color:var(--med);background:var(--med-bg)}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-2)}
+.est{font-size:12px;color:var(--ink-3);font-family:"Geist Mono",monospace}
+
+.task.next{background:var(--raised);box-shadow:0 0 0 1px var(--line-2),var(--shadow-md);margin:0 -4px 8px;padding:16px;border-radius:14px}
+.task.next + .task{box-shadow:none}
+.task.next .ttl{font-size:17px;letter-spacing:-.015em}
+.row-r{display:flex;align-items:center;gap:8px}
+.nexttag{font-size:11px;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:999px;font-weight:500}
+.btn{height:36px;padding:0 16px;border-radius:999px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:8px;transition:background .15s ease-out,transform .15s ease-out}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 1px 2px rgba(30,30,120,.2),0 6px 16px -6px color-mix(in srgb,var(--accent) 70%,transparent)}
+.btn.primary:active{transform:scale(.97)}
+.btn.ghost{color:var(--ink-2)}
+.btn.ghost:hover{background:var(--sunk)}
+.task.done .ttl{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-2);font-weight:400}
+.chk{display:grid;place-items:center;flex:none;transition:background .15s ease-out,box-shadow .15s ease-out}
+.chk:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.chk[aria-checked="true"]{background:var(--ink);box-shadow:none}
+.chk svg{stroke:var(--surface);width:12px;height:12px}
+.chk[aria-checked="false"] svg{display:none}
+.task:has(.chk[aria-checked="true"]) .ttl,.dr li:has(.chk[aria-checked="true"]) .t{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-2)}
+.sub{padding:16px 12px 4px;font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between}
+
+/* momentum (tick bar) */
+.mom{position:relative;overflow:hidden;padding:20px;border-radius:18px 18px 0 0}
+.mom::before{content:"";position:absolute;inset:-60% -40% 35% -30%;pointer-events:none;
+  background:radial-gradient(45% 50% at 32% 55%,var(--glow-a) 0%,transparent 72%),radial-gradient(45% 45% at 72% 40%,var(--glow-b) 0%,transparent 75%);
+  filter:blur(18px);opacity:.85}
+.mom::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 18%,var(--surface) 62%)}
+.mom > *{position:relative;z-index:1}
+.mom-top{display:flex;justify-content:space-between;align-items:center}
+.back{width:36px;height:36px;border-radius:10px;background:color-mix(in srgb,var(--glow-a) 70%,#0b0b30);color:#fff;display:grid;place-items:center}
+.mom-h{margin-top:72px;font-family:"Instrument Serif",Georgia,serif;font-size:34px;letter-spacing:-.01em;line-height:1}
+.mom-d{margin-top:8px;font-size:14px;color:var(--ink-2);line-height:1.55}
+.stage{margin-top:16px;padding:16px;border-radius:12px;background:var(--sunk)}
+.stage-r{display:flex;justify-content:space-between;align-items:center}
+.stage-r b{font-weight:500;font-size:14px}
+.stage-r span{font-size:12px;color:var(--ink-3);display:block;margin-top:4px}
+.stage-r .big{font-size:30px;font-weight:500;letter-spacing:-.045em}
+.mom .pct{display:flex;align-items:baseline;gap:8px;margin-top:16px}
+.mom .pct b{font-size:36px;font-weight:500;letter-spacing:-.045em;line-height:1}
+.mom .pct span{font-size:15px;color:var(--ink-2)}
+.ticks{--fill:0%;--tick:var(--accent);margin-top:12px;height:24px;border-radius:6px;
+  background:repeating-linear-gradient(90deg,var(--tick) 0 3px,transparent 3px 6px) 0 0/var(--fill) 100% no-repeat,
+             repeating-linear-gradient(90deg,var(--off) 0 3px,transparent 3px 6px)}
+.mom-foot{padding:12px 16px;box-shadow:0 -1px 0 var(--line);font-size:13px;color:var(--ink-3)}
+
+.sched{padding:0 16px 16px;display:flex;flex-direction:column;gap:8px}
+.slot{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;font-size:12px}
+.slot .h{color:var(--ink-3);font-family:"Geist Mono",monospace}
+.blk{padding:8px 12px;border-radius:10px;background:var(--sunk);font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.blk span{color:var(--ink-3);font-size:12px;font-family:"Geist Mono",monospace}
+.blk.now{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.blk.now span{color:var(--accent)}
+.blk.free{background:none;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-3)}
+
+.matrix{padding:8px 16px 16px;position:relative}
+.mx .c{position:relative}
+.mx .c.today::before{content:"";position:absolute;left:50%;top:-8px;bottom:0;border-left:1px dashed var(--ink-3);opacity:.5}
+.tip{position:absolute;left:calc(57% + 4px);top:4px;background:var(--surface);border-radius:12px;padding:8px 12px;font-size:12px;z-index:2;
+  box-shadow:0 0 0 1px var(--line-2),var(--shadow-md);min-width:132px}
+.tip .t1{color:var(--ink-3);font-size:11px;display:flex;align-items:center;gap:6px}
+.tip .t1::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--accent)}
+.tip .row{display:flex;justify-content:space-between;gap:12px;margin-top:4px;color:var(--ink-2)}
+.tip .row b{color:var(--ink);font-weight:500;font-family:"Geist Mono",monospace}
+.mx{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end}
+.mx .c{display:flex;flex-direction:column-reverse;gap:3px;align-items:center}
+.mx .c i{width:100%;max-width:30px;height:5px;border-radius:1.5px;background:var(--off)}
+.mx .c i.f{background:var(--ink)}
+.mx .c.today i.f{background:var(--accent)}
+.mx-x{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;text-align:center;font-size:11px;color:var(--ink-3)}
+.mx-x .on{color:var(--ink);font-weight:500}
+
+
+
+/* screens */
+.page[data-screen]{display:none}
+.page[data-screen].show{display:flex}
+.head-logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:600;font-size:16px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.12)}
+.head-row{display:flex;align-items:center;gap:16px}
+.chipbtn{height:36px;padding:0 14px;border-radius:999px;box-shadow:0 0 0 1px var(--line-2);display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.chipbtn:hover{background:var(--sunk)}
+.head-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.head-actions .seg{margin-left:0}
+
+/* inbox */
+.task.hov{background:color-mix(in srgb,var(--sunk) 60%,transparent)}
+.icon-btn.sm{width:32px;height:32px;color:var(--ink-3)}
+.dump{margin:0 16px;padding:12px 14px;border-radius:12px;background:var(--sunk);min-height:140px;font-size:14px;line-height:1.75;color:var(--ink)}
+.dump .caret{display:inline-block;width:1.5px;height:16px;background:var(--accent);vertical-align:-3px;margin-left:1px}
+.dump-f{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 16px 16px;font-size:12px;color:var(--ink-3)}
+
+/* project */
+.pm{display:grid;grid-template-columns:1.6fr repeat(3,1fr)}
+.pm > div{padding:20px}
+.pm > div + div{box-shadow:-1px 0 0 var(--line)}
+.pm-h{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:500;letter-spacing:-.01em}
+.pm .big{font-size:36px;font-weight:500;letter-spacing:-.045em;line-height:1}
+.pm .big span{font-size:15px;color:var(--ink-2);letter-spacing:0;margin-left:8px}
+.pm .v{font-family:"Geist Mono",monospace;font-size:22px;font-weight:500;letter-spacing:-.04em;margin-top:12px}
+.pm .note{font-size:13px;color:var(--ink-3);margin-top:8px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start}
+.lane{background:var(--sunk);border-radius:18px;padding:8px}
+.lane-h{margin:0;display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 8px 12px;font-size:15px;font-weight:500}
+.lane-h .count{color:var(--ink-3);font-weight:400}
+.lane-h .add{margin-left:auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.lane-h .add:hover{background:var(--surface)}
+.kc{background:var(--surface);border-radius:10px;padding:12px;box-shadow:0 0 0 1px var(--line),var(--shadow-sm);transition:box-shadow .15s ease-out,transform .15s ease-out}
+.kc + .kc{margin-top:8px}
+.kc:hover{box-shadow:0 0 0 1px var(--line-2),var(--shadow-md)}
+.kc h3{font-size:14px;font-weight:500;letter-spacing:-.005em;margin:8px 0 4px;line-height:1.35}
+.kc .meta{margin-top:0}
+.kc .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.kc .kf{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:8px;border-top:1px dashed var(--line-2);font-size:12px;color:var(--ink-3)}
+.kc .kf b{font-family:"Geist Mono",monospace;font-weight:500;color:var(--ink-2)}
+.kc.ghost{width:100%;background:none;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-3);font-size:13px;display:flex;align-items:center;gap:8px;justify-content:center;height:40px;padding:0}
+.kc.donec h3{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-2)}
+.kc .run{color:var(--ok);font-weight:500}
+.mini{height:4px;border-radius:4px;background:var(--off);margin-top:8px;overflow:hidden}
+.mini i{display:block;height:100%;background:var(--accent);border-radius:4px}
+
+/* week */
+.wk{display:flex;flex-direction:column;gap:12px}
+.dr{display:grid;grid-template-columns:96px minmax(0,1fr) 240px;gap:24px;align-items:center;padding:16px 20px}
+.dr .dn{font-size:32px;font-weight:500;letter-spacing:-.05em;line-height:1}
+.dr .dd{margin-top:4px}
+.dr ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.dr li{display:flex;align-items:center;gap:12px;font-size:14px}
+.dr li .chk{width:16px;height:16px;border-radius:5px;flex:none}
+.dr li .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr li .est{flex:none}
+.dr li .pdot{width:8px;height:8px;border-radius:3px;flex:none}
+.dr .more{font-size:12px;color:var(--ink-3);padding-left:48px}
+.cap-h{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3)}
+.cap-h b{font-family:"Geist Mono",monospace;font-weight:500;color:var(--ink)}
+.dr .ticks{margin-top:8px;height:20px}
+.dr.over .ticks{--tick:var(--hi)}
+.dr.over .cap-h span:last-child{color:var(--hi)}
+.dr .empty{font-size:14px;color:var(--ink-3);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.chipbtn.sm{height:30px;padding:0 12px;font-size:12px;color:var(--ink)}
+.chipbtn.sm .i{width:14px;height:14px}
+.wk-side{display:flex;flex-direction:column;gap:16px}
+
+/* calendar */
+.calcard{overflow:hidden}
+.cal-head{display:grid;grid-template-columns:64px repeat(7,1fr);box-shadow:0 1px 0 var(--line)}
+.cal-head div{padding:12px 8px;text-align:center;font-size:12px;color:var(--ink-3)}
+.cal-head b{display:block;font-size:18px;font-weight:500;color:var(--ink);letter-spacing:-.03em;margin-top:2px}
+.cal-head .today b{width:32px;height:32px;line-height:32px;border-radius:50%;background:var(--accent);color:var(--accent-ink);margin:2px auto 0;font-size:15px}
+.cal-body{display:grid;grid-template-columns:64px repeat(7,1fr);position:relative}
+.hrs div{height:56px;font-size:11px;color:var(--ink-3);text-align:right;padding-right:12px;transform:translateY(-7px)}
+.dcol{position:relative;box-shadow:-1px 0 0 var(--line);background:repeating-linear-gradient(180deg,transparent 0 55px,var(--line) 55px 56px)}
+.dcol.wkend{background-color:color-mix(in srgb,var(--sunk) 50%,transparent)}
+.ev{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:12px;line-height:1.3;overflow:hidden;
+  background:color-mix(in srgb,var(--c) 14%,var(--surface));box-shadow:inset 2px 0 0 var(--c);color:var(--ink)}
+.ev b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev.short{padding:3px 8px;font-size:11px}
+.hrs div:first-child{transform:none}
+.ev span{color:var(--ink-2);font-family:"Geist Mono",monospace;font-size:11px}
+.ev.tracked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 10%,var(--surface)) 0 6px,color-mix(in srgb,var(--c) 18%,var(--surface)) 6px 12px)}
+.nowline{position:absolute;left:0;right:0;height:0;border-top:1.5px solid var(--accent);z-index:3}
+.nowline::before{content:"";position:absolute;left:-5px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink-3);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px}
+.legend .legend-tip{margin-left:auto}
+.legend .stripe{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--ink-3) 45%,transparent) 0 2px,color-mix(in srgb,var(--ink-3) 15%,transparent) 2px 4px)}
+.legend .solid{background:color-mix(in srgb,var(--ink-3) 35%,transparent)}
+
+/* tracking */
+.bigmx{display:grid;grid-template-columns:repeat(28,1fr);gap:4px;align-items:end;padding:8px 0 0}
+.bigmx .c{display:flex;flex-direction:column-reverse;gap:3px}
+.bigmx .c i{height:5px;border-radius:1.5px;background:var(--off)}
+.bigmx .c i.f{background:var(--ink)}
+.bigmx .c.today i.f{background:var(--accent)}
+.bigmx .c.today{position:relative}
+.bigmx .c.today::before{content:"";position:absolute;left:50%;top:-8px;bottom:0;border-left:1px dashed var(--ink-3);opacity:.5}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:8px}
+.yaxis{position:absolute;left:20px;top:8px;bottom:24px;display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+.chartwrap{position:relative;padding:8px 20px 20px 60px}
+.chartwrap .tip{left:auto;right:40px;top:24px}
+.chart-top{display:flex;align-items:baseline;gap:16px;padding:0 20px 8px}
+.chart-top .v{font-family:"Geist Mono",monospace;font-size:28px;font-weight:500;letter-spacing:-.04em}
+.chart-top .legend{margin-left:auto}
+.seg.sm button{height:28px;padding:0 10px;font-size:12px}
+.seg.sm{border-radius:10px;padding:3px}
+.seg.sm button.on{border-radius:7px}
+.bp{padding:4px 20px 20px;display:flex;flex-direction:column;gap:16px}
+.bp .row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;align-items:center}
+.bp .row b{font-family:"Geist Mono",monospace;font-weight:500;font-size:13px}
+.bp .bar{grid-column:1/-1;height:8px;border-radius:4px;background:var(--off);overflow:hidden}
+.bp .bar i{display:block;height:100%;border-radius:4px}
+.bp .lbl2{display:flex;align-items:center;gap:8px}
+.insight{margin:0 20px 20px;padding:12px;border-radius:12px;background:var(--sunk);font-size:13px;color:var(--ink-2);display:flex;gap:8px}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-weight:400;text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-family:"Geist Mono",monospace;padding:10px 12px;background:var(--sunk)}
+.tbl th:first-child{border-radius:10px 0 0 10px}.tbl th:last-child{border-radius:0 10px 10px 0}
+.tbl td{padding:12px;box-shadow:0 1px 0 var(--line)}
+.tbl tr:last-child td{box-shadow:none}
+.tbl td.m{font-family:"Geist Mono",monospace;color:var(--ink-2)}
+.tbl td.r,.tbl th.r{text-align:right}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 8px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-2)}
+.src i{width:6px;height:6px;border-radius:50%}
+.tblwrap{padding:0 12px 12px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:1180px){.grid,.board{grid-template-columns:1fr}.pm{grid-template-columns:1fr 1fr}.dr{grid-template-columns:80px 1fr}.dr > :last-child{grid-column:1/-1}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:820px){body{padding:0}.win{grid-template-columns:1fr;border-radius:0}.side{display:none}.main{margin:0;border-radius:0}
+  .page{padding:24px 16px}.head{flex-wrap:wrap}.seg{margin-left:0}.tokens,.search{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="M5 7h14M5 12h10M5 17h6"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path d="M6 19V11M12 19V5M18 19v-6"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="chevup" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+  <symbol id="updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></symbol>
+  <symbol id="panel" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M10 5v14"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/></symbol>
+  <symbol id="board" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+  <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="flag" viewBox="0 0 24 24"><path d="M6 21V4h11l-2 4 2 4H6"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-width="2.5"/></symbol>
+  <symbol id="repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3M20 6H8a4 4 0 0 0-4 4M7 21l-3-3 3-3M4 18h12a4 4 0 0 0 4-4"/></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5"/></symbol>
+  <symbol id="inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 13h4.5l1.5 2h4l1.5-2H20"/></symbol>
+  <symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="paper" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></symbol>
+</svg>
+
+<div class="win">
+  <aside class="side">
+    <div class="brand"><span class="mark"><i></i><i></i><i></i><i></i></span>Tempo<button class="collapse" aria-label="Collapse sidebar"><svg class="i"><use href="#panel"/></svg></button></div>
+
+    <div>
+      <div class="lbl-s">Main</div>
+      <nav class="nav">
+        <a class="on" href="#" data-go="today"><svg class="i"><use href="#today"/></svg>Today<span class="n">5</span></a>
+        <a href="#" data-go="inbox"><svg class="i"><use href="#inbox"/></svg>Inbox<span class="n">6</span></a>
+        <a href="#" data-go="week"><svg class="i"><use href="#up"/></svg>Next 7 days<span class="n">14</span></a>
+        <a href="#" data-go="calendar"><svg class="i"><use href="#cal"/></svg>Calendar</a>
+        <a href="#" data-go="tracking"><svg class="i"><use href="#chart"/></svg>Tracking</a>
+      </nav>
+    </div>
+
+    <div>
+      <div class="lbl-s">Projects <svg class="i" style="width:14px;height:14px"><use href="#chevup"/></svg></div>
+      <nav class="nav">
+        <a href="#" data-go="project"><span class="logo" style="background:var(--pm)">M</span>MSM26<span class="n">9</span></a>
+        <div class="tree">
+          <a href="#"><svg class="i"><use href="#folder"/></svg>Sabha venue</a>
+          <a href="#"><svg class="i"><use href="#folder"/></svg>Backdrops &amp; print</a>
+          <a href="#"><svg class="i"><use href="#folder"/></svg>Logistics</a>
+          <a href="#" class="muted"><svg class="i"><use href="#plus"/></svg>Add list</a>
+        </div>
+        <a href="#"><span class="logo" style="background:var(--pc)">C</span>Campus 2027<span class="n">4</span></a>
+        <a href="#"><span class="logo" style="background:var(--ph)">H</span>Home admin<span class="n">3</span></a>
+        <a href="#" class="muted"><svg class="i"><use href="#plus"/></svg>New project</a>
+      </nav>
+    </div>
+
+    <div class="side-foot">
+      <div class="timer">
+        <div class="t-top"><span class="live"></span>Tracking now</div>
+        <div class="t-name">Backdrop print proofs</div>
+        <div class="t-row"><span class="clock mono">0:42:18</span><button class="stop" aria-label="Stop timer"><i></i></button></div>
+      </div>
+      <div class="me">
+        <span class="avatar">PG</span>
+        <div><b>Purvarajsinh</b><span>Settings &amp; sync</span></div>
+        <svg class="i"><use href="#updown"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="bar">
+      <div class="crumb"><span id="crumbA">Main</span> <svg class="i" style="width:14px;height:14px"><use href="#chev"/></svg> <b id="crumbB">Today</b></div>
+      <button class="search"><svg class="i"><use href="#search"/></svg>Search tasks, projects, notes…<span class="kbd mono">⌘ K</span></button>
+      <button class="icon-btn" aria-label="Notifications"><svg class="i"><use href="#bell"/></svg></button>
+      <button class="icon-btn theme" id="themeBtn" aria-label="Toggle theme"><svg class="i moon"><use href="#moon"/></svg><svg class="i sun"><use href="#sun"/></svg></button>
+    </div>
+
+    <div class="page show" data-screen="today">
+      <div class="head">
+        <div>
+          <h1>Thursday <span class="dim">12 November</span></h1>
+          <p>Five tasks left, and 2h 10m still free before 6pm.</p>
+        </div>
+        <div class="seg">
+          <button class="on"><svg class="i"><use href="#list"/></svg>List</button>
+          <button><svg class="i"><use href="#board"/></svg>Board</button>
+          <button><svg class="i"><use href="#cal"/></svg>Day</button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="k-body"><div><div class="cap">Planned</div><div class="v">4h 20m</div></div><div class="spark" data-v="3,5,4,6,5,7,4,6,8,6,5,7"></div></div>
+          <div class="k-foot"><span>vs last Thu</span><b class="up">+25m</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Tracked</div><div class="v">1h 45m</div></div><div class="spark" data-v="2,3,2,4,6,5,3,4,5,7,6,4"></div></div>
+          <div class="k-foot"><span>Week so far</span><b>11h 20m</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Free today</div><div class="v">2h 10m</div></div><div class="spark" data-v="6,5,6,4,5,3,4,3,2,3,2,2"></div></div>
+          <div class="k-foot"><span>Until</span><b>18:00</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Overdue</div><div class="v">2<small>tasks</small></div></div><div class="spark" data-v="1,1,2,1,3,2,2,3,2,2,1,2"></div></div>
+          <div class="k-foot"><span>Oldest</span><b>57 days</b></div></div>
+      </div>
+
+      <div class="grid">
+        <div class="col">
+          <label class="composer">
+            <svg class="i plus"><use href="#plus"/></svg>
+            <input placeholder="Add a task — try “Call printer 20m tomorrow #MSM26”">
+            <span class="tokens"><span class="tok mono">20m</span><span class="tok mono">p1</span><span class="tok mono">#project</span></span>
+          </label>
+
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#target"/></svg></span><span class="lbl">Today</span><span class="count">5</span><span class="r">Sorted by priority</span></div>
+            <div class="list">
+              <div class="task next">
+                <button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0">
+                  <span class="nexttag">Up next</span>
+                  <div class="ttl" style="margin-top:8px">Finalise Sabha venue in Central London</div>
+                  <div class="meta">
+                    <span class="prio hi"><svg class="i"><use href="#flag"/></svg>High</span>
+                    <span><i class="logo" style="width:14px;height:14px;border-radius:4px;background:var(--pm)"></i>MSM26</span>
+                    <span><svg class="i"><use href="#clock"/></svg>45m</span>
+                    <span><svg class="i"><use href="#cal"/></svg>Due 2pm</span>
+                  </div>
+                </div>
+                <div class="row-r">
+                  <button class="btn ghost">Not today</button>
+                  <button class="btn primary"><svg class="i" style="width:12px;height:12px"><use href="#play"/></svg>Start</button>
+                </div>
+              </div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Approve Sant Mahima backdrop print proofs</div>
+                  <div class="meta"><span class="prio med"><svg class="i"><use href="#flag"/></svg>Medium</span><span>MSM26 · Backdrops &amp; print</span><span><svg class="i"><use href="#paper"/></svg>2 files</span></div></div>
+                <span class="est">1h 30m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Draft sponsor one-pager for Campus 2027</div>
+                  <div class="meta"><span class="pill">Writing</span><span>Campus 2027</span></div></div>
+                <span class="est">1h</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Book van for Saturday stage setup</div>
+                  <div class="meta"><span>MSM26 · Logistics</span><span>£86 quote from Hertz</span></div></div>
+                <span class="est">15m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Pay council tax instalment</div>
+                  <div class="meta"><span>Home admin</span><span><svg class="i"><use href="#repeat"/></svg>Monthly</span></div></div>
+                <span class="est">10m</span></div>
+              <div class="sub"><span>Done today · 3</span><span class="mono">1h 45m</span></div>
+              <div class="task done"><button class="chk" role="checkbox" aria-checked="true" aria-label="Mark done"><svg class="i"><use href="#check"/></svg></button>
+                <div style="min-width:0"><div class="ttl">Reply to Kishore team about Sunday rota</div></div><span class="est">20m</span></div>
+              <div class="task done"><button class="chk" role="checkbox" aria-checked="true" aria-label="Mark done"><svg class="i"><use href="#check"/></svg></button>
+                <div style="min-width:0"><div class="ttl">Send lighting quote to Hiren</div></div><span class="est">35m</span></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="col">
+          <section class="card">
+            <div class="mom">
+              <div class="mom-top"><span class="back"><svg class="i"><use href="#target"/></svg></span><span class="cap" style="color:var(--ink-2)">Thu · 12/11</span></div>
+              <div class="mom-h">Momentum</div>
+              <p class="mom-d">You have cleared the small things. The venue call is the one that moves MSM26 forward today.</p>
+              <div class="stage">
+                <div class="stage-r"><div><b>Day progress</b><span>3 of 8 tasks completed</span></div><div class="big">38%</div></div>
+                <div class="ticks" style="--fill:38%"></div>
+              </div>
+            </div>
+            <div class="mom-foot">Most of today went to MSM26 backdrops.</div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#clock"/></svg></span><span class="lbl">This afternoon</span><span class="r mono">14:00 – 18:00</span></div>
+            <div class="sched">
+              <div class="slot"><span class="h">14:00</span><div class="blk now">Finalise Sabha venue<span>45m</span></div></div>
+              <div class="slot"><span class="h">14:45</span><div class="blk">Backdrop print proofs<span>1h 30m</span></div></div>
+              <div class="slot"><span class="h">16:15</span><div class="blk free">Free · fits the sponsor draft<span>1h 45m</span></div></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#chart"/></svg></span><span class="lbl">Tracked this week</span><span class="r mono">11h 20m</span></div>
+            <div class="matrix">
+              <div class="tip"><div class="t1 mono">THU 12 NOV</div><div class="row">Tracked<b>1h 45m</b></div><div class="row">Planned<b>4h 20m</b></div></div>
+              <div class="mx" id="mx" style="padding-top:8px"></div>
+              <div class="mx-x mono"><span>M</span><span>T</span><span>W</span><span class="on">T</span><span>F</span><span>S</span><span>S</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-screen="inbox">
+      <div class="head">
+        <div><h1>Inbox <span class="dim">6 to sort</span></h1><p>Six tasks with no day yet. The oldest has waited 12 days.</p></div>
+        <div class="head-actions"><button class="chipbtn"><svg class="i"><use href="#updown"/></svg>Oldest first</button></div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="k-body"><div><div class="cap">In inbox</div><div class="v">6<small>tasks</small></div></div><div class="spark" data-v="3,4,6,5,8,7,9,6,4,5,7,6"></div></div>
+          <div class="k-foot"><span>Added this week</span><b>4</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Oldest</div><div class="v">12<small>days</small></div></div><div class="spark" data-v="4,5,6,7,8,2,3,4,5,9,10,12"></div></div>
+          <div class="k-foot"><span>Since</span><b>Sun 1 Nov</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Estimated</div><div class="v">3h 05m</div></div><div class="spark" data-v="2,3,3,4,5,4,6,5,4,3,4,5"></div></div>
+          <div class="k-foot"><span>No estimate</span><b>2 tasks</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Cleared</div><div class="v">9<small>this week</small></div></div><div class="spark" data-v="1,3,2,4,2,5,3,2,4,6,3,9"></div></div>
+          <div class="k-foot"><span>Last inbox zero</span><b>Tue 10 Nov</b></div></div>
+      </div>
+
+      <div class="grid">
+        <div class="col">
+          <label class="composer">
+            <svg class="i plus"><use href="#plus"/></svg>
+            <input placeholder="Add to the inbox. No day needed.">
+            <span class="tokens"><span class="tok mono">20m</span><span class="tok mono">p1</span><span class="tok mono">#project</span></span>
+          </label>
+
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#inbox"/></svg></span><span class="lbl">Inbox</span><span class="count">6</span><span class="r">Pick a day for each, or let it go</span></div>
+            <div class="list">
+              <div class="sub" style="padding-top:4px"><span>Older than a week · 2</span><span class="mono">1h 15m</span></div>
+              <div class="task hov"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Shortlist caterers for 800 guests</div>
+                  <div class="meta"><span class="prio med"><svg class="i"><use href="#flag"/></svg>Medium</span><span><i class="logo" style="width:14px;height:14px;border-radius:4px;background:var(--pm)"></i>MSM26</span><span><svg class="i"><use href="#clock"/></svg>Added 12 days ago</span></div></div>
+                <div class="row-r">
+                  <button class="btn ghost">Today</button>
+                  <button class="chipbtn"><svg class="i"><use href="#cal"/></svg>Pick a day</button>
+                  <button class="icon-btn sm" aria-label="Move to trash"><svg class="i"><use href="#trash"/></svg></button>
+                </div></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Renew the car insurance</div>
+                  <div class="meta"><span>Home admin</span><span><svg class="i"><use href="#clock"/></svg>Added 9 days ago</span></div></div>
+                <span class="est">30m</span></div>
+
+              <div class="sub"><span>This week · 4</span><span class="mono">1h 50m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Ask Hiren for the stage lighting invoice</div>
+                  <div class="meta"><span class="prio hi"><svg class="i"><use href="#flag"/></svg>High</span><span><i class="logo" style="width:14px;height:14px;border-radius:4px;background:var(--pm)"></i>MSM26</span><span><svg class="i"><use href="#clock"/></svg>Added yesterday</span></div></div>
+                <span class="est">10m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Read the Campus 2027 sponsor brief</div>
+                  <div class="meta"><span class="pill">Reading</span><span>Campus 2027</span><span><svg class="i"><use href="#paper"/></svg>1 file</span></div></div>
+                <span class="est">45m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Buy printer ink</div>
+                  <div class="meta"><span>Home admin</span><span><svg class="i"><use href="#clock"/></svg>Added today</span></div></div>
+                <span class="est">15m</span></div>
+              <div class="task"><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button>
+                <div style="min-width:0"><div class="ttl">Think about a winter retreat for the team</div>
+                  <div class="meta"><span>No project</span><span>No estimate</span></div></div>
+                <span class="est"></span></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="col">
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#paper"/></svg></span><span class="lbl">Brain dump</span><span class="r">One task per line</span></div>
+            <div class="dump">Ring the caterer about numbers 15m<br>Renew passport #home<br>Book the hall for the rehearsal p1<span class="caret"></span></div>
+            <div class="dump-f"><span>3 tasks found, 1 with a project</span><button class="btn primary">Add 3 tasks</button></div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><span class="ic"><svg class="i"><use href="#clock"/></svg></span><span class="lbl">Free this week</span><span class="r mono">9h 40m</span></div>
+            <div class="sched">
+              <div class="slot"><span class="h">Thu</span><div class="blk free">16:15 to 18:00 · fits the caterers<span>1h 45m</span></div></div>
+              <div class="slot"><span class="h">Fri</span><div class="blk free">11:00 to 15:00<span>4h</span></div></div>
+              <div class="slot"><span class="h">Mon</span><div class="blk free">09:00 to 12:55<span>3h 55m</span></div></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-screen="project">
+      <div class="head">
+        <div class="head-row">
+          <span class="head-logo" style="background:var(--pm)">M</span>
+          <div><h1>MSM26</h1><p>Sant Mahima Sabha prep. 9 open tasks across 3 lists, event on Sunday 14 March.</p></div>
+        </div>
+        <div class="head-actions">
+          <div class="seg"><button><svg class="i"><use href="#cal"/></svg>Calendar</button><button class="on"><svg class="i"><use href="#board"/></svg>Board</button><button><svg class="i"><use href="#list"/></svg>List</button></div>
+        </div>
+      </div>
+      <section class="card pm">
+        <div><div class="pm-h"><span class="ic"><svg class="i"><use href="#folder"/></svg></span>Project momentum</div>
+          <div class="big" style="margin-top:16px">68%<span>completed</span></div>
+          <div class="ticks" style="--fill:68%"></div>
+          <div class="note">19 of 28 tasks finished. Most progress came from backdrops and print.</div></div>
+        <div><div class="cap">Tracked</div><div class="v">38h 15m</div><div class="note">+6h 20m this week</div></div>
+        <div><div class="cap">Left to plan</div><div class="v">14h 30m</div><div class="note">Across 9 open tasks</div></div>
+        <div><div class="cap">Event in</div><div class="v">122 days</div><div class="note">Sun 14 Mar 2027</div></div>
+      </section>
+      <div class="board">
+        <div class="lane"><h2 class="lane-h"><svg class="i"><use href="#target"/></svg>Backlog <span class="count">4</span><button class="add" aria-label="Add task"><svg class="i"><use href="#plus"/></svg></button></h2>
+          <div class="kc"><span class="prio med"><svg class="i"><use href="#flag"/></svg>Medium</span><h3>Shortlist caterers for 800 guests</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Dec 3</span><span><svg class="i"><use href="#paper"/></svg>1 file</span></div><div class="tags"><span class="pill">Logistics</span><span class="pill">Food</span></div><div class="kf"><span>Estimate <b>2h</b></span><span>Not started</span></div></div>
+          <div class="kc"><h3>Write volunteer briefing pack</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Jan 10</span></div><div class="tags"><span class="pill">Writing</span></div><div class="kf"><span>Estimate <b>3h</b></span><span>Not started</span></div></div>
+          <div class="kc"><h3>Sound check plan for main hall</h3><div class="meta"><span>No date</span></div><div class="tags"><span class="pill">Logistics</span></div><div class="kf"><span>Estimate <b>1h</b></span><span>Not started</span></div></div>
+          <button class="kc ghost"><svg class="i"><use href="#plus"/></svg>Add task</button></div>
+        <div class="lane"><h2 class="lane-h"><svg class="i"><use href="#cal"/></svg>This week <span class="count">3</span><button class="add" aria-label="Add task"><svg class="i"><use href="#plus"/></svg></button></h2>
+          <div class="kc"><span class="prio hi"><svg class="i"><use href="#flag"/></svg>High</span><h3>Finalise Sabha venue in Central London</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Today, 2pm</span><span><svg class="i"><use href="#paper"/></svg>3 files</span></div><div class="tags"><span class="pill">Venue</span></div><div class="kf"><span>Estimate <b>45m</b></span><span>0m tracked</span></div></div>
+          <div class="kc"><h3>Book van for Saturday stage setup</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Fri 13</span></div><div class="tags"><span class="pill">Logistics</span></div><div class="kf"><span>Estimate <b>15m</b></span><span>£86 quote</span></div></div>
+          <div class="kc"><h3>Order 40 table numbers</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Sun 15</span></div><div class="tags"><span class="pill">Print</span></div><div class="kf"><span>Estimate <b>20m</b></span><span>Not started</span></div></div></div>
+        <div class="lane"><h2 class="lane-h"><span class="live" style="margin:0 4px"></span>In progress <span class="count">2</span><button class="add" aria-label="Add task"><svg class="i"><use href="#plus"/></svg></button></h2>
+          <div class="kc"><span class="prio med"><svg class="i"><use href="#flag"/></svg>Medium</span><h3>Approve Sant Mahima backdrop print proofs</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Today</span><span><svg class="i"><use href="#paper"/></svg>2 files</span></div><div class="mini"><i style="width:47%"></i></div><div class="kf"><span>Tracked <b>42m</b> of 1h 30m</span><span class="run">Running</span></div></div>
+          <div class="kc"><h3>Stage lighting plan with Hiren</h3><div class="meta"><span><svg class="i"><use href="#cal"/></svg>Nov 18</span></div><div class="tags"><span class="pill">Venue</span><span class="pill">Tech</span></div><div class="kf"><span>Estimate <b>2h</b></span><span>1h 10m tracked</span></div></div></div>
+        <div class="lane"><h2 class="lane-h"><svg class="i"><use href="#check"/></svg>Done <span class="count">19</span></h2>
+          <div class="kc donec"><h3>Send lighting quote to Hiren</h3><div class="meta"><span>Done today</span></div><div class="kf"><span>Estimate <b>35m</b></span><span>35m tracked</span></div></div>
+          <div class="kc donec"><h3>Confirm date with the Sabha committee</h3><div class="meta"><span>Done Nov 4</span></div><div class="kf"><span>Estimate <b>30m</b></span><span>25m tracked</span></div></div>
+          <button class="kc ghost">Show 17 more</button></div>
+      </div>
+    </div>
+    <div class="page" data-screen="week">
+      <div class="head">
+        <div><h1>Next 7 days <span class="dim">13 – 19 Nov</span></h1><p>14 tasks, 18h 35m planned. Tuesday is over capacity.</p></div>
+        <div class="seg"><button class="on"><svg class="i"><use href="#list"/></svg>List</button><button><svg class="i"><use href="#board"/></svg>Board</button><button><svg class="i"><use href="#cal"/></svg>Calendar</button></div>
+      </div>
+      <div class="wk">
+        <section class="card dr"><div><div class="dn">13</div><div class="cap dd">Fri</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Book van for Saturday stage setup</span><span class="est">15m</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pc)"></i><span class="t">Draft sponsor one-pager for Campus 2027</span><span class="est">1h</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Call printer about backdrop stock</span><span class="est">20m</span></li></ul></div>
+      <div><div class="cap-h"><span><b>1h 35m</b> of 6h</span><span>4h 25m free</span></div><div class="ticks" style="--fill:26%"></div></div></section>
+        <section class="card dr"><div><div class="dn">14</div><div class="cap dd">Sat</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Stage setup at the hall</span><span class="est">4h</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--ph)"></i><span class="t">Weekly reset and inbox zero</span><span class="est">30m</span></li></ul></div>
+      <div><div class="cap-h"><span><b>4h 30m</b> of 5h</span><span>30m free</span></div><div class="ticks" style="--fill:90%"></div><div class="note" style="font-size:12px;color:var(--ink-3);margin-top:8px">Weekend: capacity set to 5h</div></div></section>
+        <section class="card dr"><div><div class="dn">15</div><div class="cap dd">Sun</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Order 40 table numbers</span><span class="est">20m</span></li></ul></div>
+      <div><div class="cap-h"><span><b>20m</b> of 3h</span><span>2h 40m free</span></div><div class="ticks" style="--fill:11%"></div></div></section>
+        <section class="card dr"><div><div class="dn">16</div><div class="cap dd">Mon</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pc)"></i><span class="t">Campus 2027 sponsor calls</span><span class="est">2h</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--ph)"></i><span class="t">Pay phone bill</span><span class="est">5m</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Review volunteer rota</span><span class="est">45m</span></li></ul></div>
+      <div><div class="cap-h"><span><b>2h 50m</b> of 6h</span><span>3h 10m free</span></div><div class="ticks" style="--fill:47%"></div></div></section>
+        <section class="card dr over"><div><div class="dn">17</div><div class="cap dd">Tue</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Stage lighting plan with Hiren</span><span class="est">2h</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pc)"></i><span class="t">Campus 2027 budget sheet</span><span class="est">3h</span></li><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--ph)"></i><span class="t">Dentist, Baker St</span><span class="est">1h 30m</span></li></ul><div class="more">+1 more</div></div>
+      <div><div class="cap-h"><span><b>7h 20m</b> of 6h</span><span>Over by 1h 20m</span></div><div class="ticks" style="--fill:100%"></div></div></section>
+        <section class="card dr"><div><div class="dn">18</div><div class="cap dd">Wed</div></div><div style="min-width:0"><div class="empty">Nothing planned yet. The volunteer briefing pack (3h) fits here.<button class="chipbtn sm"><svg class="i"><use href="#plus"/></svg>Plan it for Wednesday</button></div></div>
+      <div><div class="cap-h"><span><b>0h</b> of 6h</span><span>6h free</span></div><div class="ticks" style="--fill:0%"></div></div></section>
+        <section class="card dr"><div><div class="dn">19</div><div class="cap dd">Thu</div></div><div style="min-width:0"><ul><li><button class="chk" role="checkbox" aria-checked="false" aria-label="Mark done"></button><i class="pdot" style="background:var(--pm)"></i><span class="t">Shortlist caterers for 800 guests</span><span class="est">2h</span></li></ul></div>
+      <div><div class="cap-h"><span><b>2h</b> of 6h</span><span>4h free</span></div><div class="ticks" style="--fill:33%"></div></div></section>
+      </div>
+    </div>
+    <div class="page" data-screen="calendar">
+      <div class="head">
+        <div><h1>November <span class="dim">2026</span></h1><p>Week 46. Planned blocks are solid, tracked time is striped.</p></div>
+        <div class="head-actions">
+          <button class="icon-btn" aria-label="Previous week"><svg class="i" style="transform:scaleX(-1)"><use href="#chev"/></svg></button>
+          <button class="chipbtn">Today</button>
+          <button class="icon-btn" aria-label="Next week"><svg class="i"><use href="#chev"/></svg></button>
+          <div class="seg"><button>Day</button><button class="on">Week</button><button>Month</button></div>
+        </div>
+      </div>
+      <section class="card calcard">
+        <div class="cal-head" id="calHead"></div>
+        <div class="cal-body" id="calBody"></div>
+      </section>
+      <div class="legend"><span><i style="background:var(--pm)"></i>MSM26</span><span><i style="background:var(--pc)"></i>Campus 2027</span><span><i style="background:var(--ph)"></i>Home admin</span><span><i class="solid"></i>Planned</span><span><i class="stripe"></i>Tracked</span><span class="legend-tip">Drag a task from Next 7 days onto the grid to plan it</span></div>
+    </div>
+    <div class="page" data-screen="tracking">
+      <div class="head">
+        <div><h1>Tracking <span class="dim">November</span></h1><p>Where your time actually went, next to what you planned.</p></div>
+        <div class="head-actions">
+          <button class="chipbtn"><svg class="i"><use href="#cal"/></svg>16 Oct – 12 Nov</button>
+          <div class="seg"><button>7 days</button><button class="on">28 days</button><button>90 days</button></div>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="k-body"><div><div class="cap">This week</div><div class="v">11h 20m</div></div><div class="spark" data-v="4,6,5,7,6,8,5,7,9,8,6,7"></div></div><div class="k-foot"><span>vs last week</span><b class="up">+2h 05m</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Daily average</div><div class="v">2h 50m</div></div><div class="spark" data-v="3,4,3,5,4,4,3,5,4,6,5,4"></div></div><div class="k-foot"><span>Weekdays only</span><b>Mon – Thu</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Plan accuracy</div><div class="v">82%</div></div><div class="spark" data-v="6,7,5,8,7,6,8,7,9,8,8,8"></div></div><div class="k-foot"><span>Estimates ran over</span><b>by 18m avg</b></div></div>
+        <div class="kpi"><div class="k-body"><div><div class="cap">Sessions</div><div class="v">14</div></div><div class="spark" data-v="2,3,2,4,3,3,2,4,3,5,4,3"></div></div><div class="k-foot"><span>Longest</span><b>1h 52m</b></div></div>
+      </div>
+      <div class="grid">
+        <section class="card">
+          <div class="card-h"><span class="ic"><svg class="i"><use href="#chart"/></svg></span><span class="lbl">Time by day</span>
+            <div class="seg sm" style="margin-left:auto"><button>By week</button><button class="on">By day</button></div></div>
+          <div class="chart-top"><span class="cap">Total tracked</span><span class="v">48h 35m</span><div class="legend"><span><i style="background:var(--ink)"></i>Tracked</span><span><i style="background:var(--accent)"></i>Today</span></div></div>
+          <div class="chartwrap">
+            <div class="yaxis mono"><span>8h</span><span>6h</span><span>4h</span><span>2h</span><span>0</span></div>
+            <div class="tip"><div class="t1 mono">THU 12 NOV</div><div class="row">Tracked<b>1h 45m</b></div><div class="row">Planned<b>4h 20m</b></div></div>
+            <div class="bigmx" id="bigmx"></div>
+            <div class="axis mono"><span>16 OCT</span><span>23 OCT</span><span>30 OCT</span><span>6 NOV</span><span>12 NOV</span></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-h"><span class="ic"><svg class="i"><use href="#folder"/></svg></span><span class="lbl">By project</span><span class="r">This week</span></div>
+          <div class="bp">
+            <div class="row"><span class="lbl2"><span class="logo" style="width:18px;height:18px;border-radius:5px;background:var(--pm)"></span>MSM26</span><b>7h 40m</b><div class="bar"><i style="width:68%;background:var(--pm)"></i></div></div>
+            <div class="row"><span class="lbl2"><span class="logo" style="width:18px;height:18px;border-radius:5px;background:var(--pc)"></span>Campus 2027</span><b>2h 10m</b><div class="bar"><i style="width:19%;background:var(--pc)"></i></div></div>
+            <div class="row"><span class="lbl2"><span class="logo" style="width:18px;height:18px;border-radius:5px;background:var(--ph)"></span>Home admin</span><b>1h 30m</b><div class="bar"><i style="width:13%;background:var(--ph)"></i></div></div>
+          </div>
+          <div class="insight"><svg class="i" style="color:var(--accent)"><use href="#target"/></svg><span>Campus 2027 got 2h 10m of the 5h you planned for it this week.</span></div>
+        </section>
+      </div>
+      <section class="card">
+        <div class="card-h"><span class="ic"><svg class="i"><use href="#clock"/></svg></span><span class="lbl">Recent entries</span><span class="r">Today and yesterday</span></div>
+        <div class="tblwrap"><table class="tbl">
+          <thead><tr><th>Task</th><th>Project</th><th>Started</th><th>Source</th><th class="r">Duration</th></tr></thead>
+          <tbody>
+            <tr><td>Approve Sant Mahima backdrop print proofs</td><td>MSM26</td><td class="m">Today 13:18</td><td><span class="src"><i style="background:var(--ok)"></i>Running</span></td><td class="m r">0:42:18</td></tr>
+            <tr><td>Send lighting quote to Hiren</td><td>MSM26</td><td class="m">Today 11:05</td><td><span class="src"><i style="background:var(--ink-3)"></i>Timer</span></td><td class="m r">0:35:02</td></tr>
+            <tr><td>Reply to Kishore team about Sunday rota</td><td>MSM26</td><td class="m">Today 09:40</td><td><span class="src"><i style="background:var(--ink-3)"></i>Timer</span></td><td class="m r">0:20:11</td></tr>
+            <tr><td>Campus 2027 sponsor research</td><td>Campus 2027</td><td class="m">Yesterday 16:10</td><td><span class="src"><i style="background:var(--med)"></i>Manual</span></td><td class="m r">1:10:00</td></tr>
+            <tr><td>Stage lighting plan with Hiren</td><td>MSM26</td><td class="m">Yesterday 14:00</td><td><span class="src"><i style="background:var(--ink-3)"></i>Timer</span></td><td class="m r">1:52:40</td></tr>
+          </tbody></table></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+document.querySelectorAll('.spark').forEach(s=>{const v=s.dataset.v.split(',').map(Number),m=Math.max(...v);
+  v.forEach((x,i)=>{const b=document.createElement('i');b.style.height=(x/m*100)+'%';if(i===v.length-1)b.className='on';s.appendChild(b)})});
+const hours=[3,2.5,4,1.75,0,0,0],rows=18,mx=document.getElementById('mx');
+hours.forEach((h,d)=>{const c=document.createElement('div');c.className='c'+(d===3?' today':'');const f=Math.round(h*2);
+  for(let r=0;r<rows;r++){const i=document.createElement('i');if(r<f)i.className='f';c.appendChild(i)}mx.appendChild(c)});
+
+// screens
+const crumbs={today:['Main','Today'],week:['Main','Next 7 days'],calendar:['Main','Calendar'],tracking:['Main','Tracking'],project:['Projects','MSM26'],inbox:['Main','Inbox']};
+function go(k){document.querySelectorAll('.page[data-screen]').forEach(p=>p.classList.toggle('show',p.dataset.screen===k));
+  document.querySelectorAll('[data-go]').forEach(a=>a.classList.toggle('on',a.dataset.go===k));
+  document.getElementById('crumbA').textContent=crumbs[k][0];document.getElementById('crumbB').textContent=crumbs[k][1];
+  try{history.replaceState(null,'','#'+k)}catch(e){}}
+document.querySelectorAll('[data-go]').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.go)});
+if(crumbs[location.hash.slice(1)])go(location.hash.slice(1));
+// calendar
+const days=['Mon 9','Tue 10','Wed 11','Thu 12','Fri 13','Sat 14','Sun 15'],H0=8,H1=19,PX=56;
+const ch=document.getElementById('calHead');ch.innerHTML='<div></div>'+days.map((d,i)=>{const[a,b]=d.split(' ');return `<div class="${i===3?'today':''}">${a}<b>${b}</b></div>`}).join('');
+const cb=document.getElementById('calBody');let hrs='<div class="hrs">';for(let h=H0;h<H1;h++)hrs+=`<div class="mono">${String(h).padStart(2,'0')}:00</div>`;cb.innerHTML=hrs+'</div>';
+const C={m:'var(--pm)',c:'var(--pc)',h:'var(--ph)'};
+const evs=[[0,9,1.5,'Venue calls','m',1],[0,11,1,'Inbox and admin','h',1],[0,14,2,'Backdrop design review','m',1],
+ [1,9.5,2,'Campus 2027 deck outline','c',1],[1,13,1,'Lunch with Ankit','h',1],[1,15,1.5,'Print supplier visit','m',1],
+ [2,10,1,'Volunteer rota','m',1],[2,14,2,'Stage lighting plan','m',1],[2,16.25,1.25,'Sponsor research','c',1],
+ [3,9.6,.4,'Kishore rota reply','m',1],[3,11,.6,'Lighting quote','m',1],[3,13.3,.7,'Backdrop proofs','m',2],[3,14,.75,'Finalise Sabha venue','m',0],[3,14.75,1.5,'Backdrop print proofs','m',0],[3,16.25,1,'Sponsor one-pager','c',0],
+ [4,9,.5,'Book van','m',0],[4,10,1,'Sponsor one-pager','c',0],[4,15,.5,'Call printer','m',0],
+ [5,10,4,'Stage setup at the hall','m',0],[6,11,.5,'Order table numbers','m',0]];
+const fmt=h=>{const m=Math.round(h*60);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+days.forEach((d,i)=>{const col=document.createElement('div');col.className='dcol'+(i>4?' wkend':'');col.style.height=((H1-H0)*PX)+'px';
+  evs.filter(e=>e[0]===i).forEach(([_,s,dur,t,c,tr])=>{const e=document.createElement('div');e.className='ev'+(tr?' tracked':'')+(tr===2?' running':'')+(dur<.7?' short':'');e.style.setProperty('--c',C[c]);
+    e.style.top=((s-H0)*PX+2)+'px';e.style.height=(dur*PX-4)+'px';e.innerHTML=`<b>${t}</b>${dur>=.7?`<span>${fmt(s)} – ${tr===2?'now':fmt(s+dur)}</span>`:''}`;col.appendChild(e)});
+  if(i===3){const n=document.createElement('div');n.className='nowline';n.style.top=((14-H0)*PX)+'px';col.appendChild(n)}
+  cb.appendChild(col)});
+// tracking chart
+const bm=document.getElementById('bigmx');const seed=[2,3,4,3,0,0,1,3,4,5,3,4,0,0,2,4,3,5,4,1,0,3,4,6,3,0,0,0];
+seed.forEach((v,i)=>{const h=i===27?1.75:(v*0.9+((i*7)%3)*.4);const c=document.createElement('div');c.className='c'+(i===27?' today':'');
+  const f=Math.round((i===27?1.75:h)*2);for(let r=0;r<16;r++){const d=document.createElement('i');if(r<f)d.className='f';c.appendChild(d)}bm.appendChild(c)});
+
+document.querySelectorAll('.seg').forEach(g=>{const bs=[...g.querySelectorAll('button')];
+  bs.forEach(b=>{b.setAttribute('aria-pressed',b.classList.contains('on'));b.addEventListener('click',()=>bs.forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',x===b)}))})});
+document.querySelectorAll('.chk').forEach(c=>c.addEventListener('click',()=>{const on=c.getAttribute('aria-checked')!=='true';c.setAttribute('aria-checked',on);
+  if(on&&!c.querySelector('svg'))c.innerHTML='<svg class="i"><use href="#check"/></svg>'}));
+document.querySelectorAll('a[href="#"]:not([data-go])').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
+const root=document.documentElement;
+function setT(t){root.dataset.theme=t;try{localStorage.setItem('soft-theme',t)}catch(e){}}
+let saved;try{saved=localStorage.getItem('soft-theme')}catch(e){}
+setT(saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+document.getElementById('themeBtn').onclick=()=>setT(root.dataset.theme==='dark'?'light':'dark');
+</script>
+</body>
+</html>

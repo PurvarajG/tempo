@@ -116,3 +116,36 @@ test("getAttentionItems ignores trashed and done tasks", () => {
   const items = getAttentionItems([trashed, done], stages, PROJECT, TODAY);
   assert.equal(items.length, 0);
 });
+
+test("getFocusTask never picks an undated task unless it is committed today", () => {
+  const undated = task({ id: "undated", scheduled: null, priority: 1 });
+  assert.equal(getFocusTask([undated], PROJECT, null, TODAY), null);
+  const committed = { ...undated, committedOn: TODAY };
+  assert.equal(getFocusTask([committed], PROJECT, null, TODAY)?.id, "undated");
+});
+
+test("taskAge is 0 and isStale false for undated tasks", () => {
+  const undated = task({ scheduled: null });
+  assert.equal(taskAge(undated, TODAY), 0);
+  assert.equal(isStale(undated, TODAY), false);
+  assert.equal(getAttentionItems([undated], stages, PROJECT, TODAY).length, 0);
+});
+
+test("getFocusTask skips a blocked task", () => {
+  const blocker = task({ id: "blocker", scheduled: "2026-03-20" });
+  const blocked = task({ id: "blocked", priority: 1, blockedBy: ["blocker"] });
+  const free = task({ id: "free", priority: 3 });
+  assert.equal(getFocusTask([blocker, blocked, free], PROJECT, null, TODAY)?.id, "free");
+});
+
+test("getFocusTask skips a hidden-until task", () => {
+  const hidden = task({ id: "hidden", priority: 1, startOn: "2026-03-15" });
+  const visible = task({ id: "visible", priority: 3 });
+  assert.equal(getFocusTask([hidden, visible], PROJECT, null, TODAY)?.id, "visible");
+});
+
+test("getFocusTask lets a committed task outrank an older carried-over one", () => {
+  const carried = task({ id: "carried", priority: 0, scheduled: "2026-03-01" });
+  const committed = task({ id: "committed", priority: 3, scheduled: TODAY, committedOn: TODAY });
+  assert.equal(getFocusTask([carried, committed], PROJECT, null, TODAY)?.id, "committed");
+});

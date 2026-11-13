@@ -71,8 +71,7 @@ describe("Today's rail collapse toggle is guarded until settings has loaded", ()
       </TasksProvider>,
     );
 
-    // Notepad and Quick list are never gated on data having loaded (unlike
-    // Due today/Blocked, which start "empty" until tasks arrive) — their
+    // The Notepad card is never gated on data having loaded, so its
     // disclosure button exists the instant the rail renders, well before
     // settings resolves.
     const collapseButton = await screen.findByRole("button", { name: /Notepad/ });

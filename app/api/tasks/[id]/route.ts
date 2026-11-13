@@ -12,7 +12,10 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/tasks/[id]
 
     if (b.title !== undefined) patch.title = v.nonEmpty(b.title, "Title", 500);
     if (b.notes !== undefined) patch.notes = v.str(b.notes, "Notes");
-    if (b.scheduled !== undefined) patch.scheduled = v.isoDate(b.scheduled, "scheduled");
+    if (b.scheduled !== undefined) patch.scheduled = v.nullableIsoDate(b.scheduled, "scheduled");
+    if (b.startOn !== undefined) patch.startOn = v.optionalNullableIsoDate(b.startOn, "startOn");
+    if (b.expiresOn !== undefined) patch.expiresOn = v.optionalNullableIsoDate(b.expiresOn, "expiresOn");
+    if (b.committedOn !== undefined) patch.committedOn = v.optionalNullableIsoDate(b.committedOn, "committedOn");
     if (b.dueTime !== undefined) patch.dueTime = v.optionalTime(b.dueTime, "dueTime") ?? "";
     if (b.isComplex !== undefined) patch.isComplex = v.bool(b.isComplex, "isComplex");
     if (b.finishDate !== undefined) {
@@ -26,16 +29,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/tasks/[id]
     if (b.stageId !== undefined) patch.stageId = v.optionalUuid(b.stageId, "stageId") ?? "";
 
     if (b.recurrence !== undefined) {
-      if (b.recurrence === null) patch.recurrence = undefined;
-      else {
-        const r = v.body(b.recurrence);
-        const freq = v.str(r.freq, "recurrence.freq", 10);
-        if (!["daily", "weekly", "monthly"].includes(freq)) v.fail("recurrence.freq is invalid");
-        patch.recurrence = {
-          freq: freq as "daily" | "weekly" | "monthly",
-          interval: v.minutes(r.interval ?? 1, "recurrence.interval", 365),
-        };
-      }
+      patch.recurrence = b.recurrence === null ? undefined : v.recurrence(b.recurrence, "recurrence");
     }
 
     return store.updateTask(v.uuid(id, "task id"), patch);

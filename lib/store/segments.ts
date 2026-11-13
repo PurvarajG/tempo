@@ -230,6 +230,52 @@ export async function updateSegment(
   });
 }
 
+/**
+ * Splits one segment at `at` into [started_at, at) (keeps the id) and
+ * [at, original end) (new row, same subject). A running segment's running
+ * state moves to the second half, so the single-timer index still holds.
+ */
+export async function splitSegmentAt(
+  id: string,
+  at: string,
+): Promise<{ before: Segment; after: Segment } | null> {
+  return withTransaction(async (tx) => {
+    const existing = await getSegment(id, tx);
+    if (!existing) return null;
+
+    const atMs = new Date(at).getTime();
+    const startMs = new Date(existing.startedAt).getTime();
+    const endMs = existing.endedAt ? new Date(existing.endedAt).getTime() : Date.now();
+    if (Number.isNaN(atMs) || atMs <= startMs || atMs >= endMs) {
+      throw new SegmentOverlap("The split point must fall inside the segment");
+    }
+
+    const wasRunning = existing.endedAt === null;
+    const beforeRows = await tx.query<SegmentRow>(
+      `update segments set ended_at = $2::timestamptz, running_lock = null, updated_at = now()
+        where id = $1 returning *`,
+      [id, at],
+    );
+    const afterRows = await tx.query<SegmentRow>(
+      `insert into segments (id, started_at, ended_at, category_id, activity_id, task_id, note, source, running_lock)
+       values ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, $9)
+       returning *`,
+      [
+        randomUUID(),
+        at,
+        wasRunning ? null : existing.endedAt,
+        existing.categoryId,
+        existing.activityId ?? null,
+        existing.taskId ?? null,
+        existing.note ?? null,
+        existing.source,
+        wasRunning ? true : null,
+      ],
+    );
+    return { before: rowToSegment(beforeRows[0]), after: rowToSegment(afterRows[0]) };
+  });
+}
+
 export async function deleteSegment(id: string): Promise<boolean> {
   const rows = await db.query<{ id: string }>(`delete from segments where id = $1 returning id`, [id]);
   return rows.length > 0;

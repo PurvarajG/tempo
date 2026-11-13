@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tempo Soft Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --canvas:#e9e9e6;          /* desk behind the window */
+  --shell:#f4f4f1;           /* sidebar + window base */
+  --surface:#ffffff;         /* cards */
+  --sunk:#efefec;            /* segmented track, inputs */
+  --ink:#16171b;
+  --ink-2:#55575f;
+  --ink-3:#6f7178;
+  --line:rgba(22,23,27,.07);
+  --line-2:rgba(22,23,27,.11);
+  --accent:#4a4ae8;
+  --accent-ink:#ffffff;
+  --accent-soft:rgba(74,74,232,.10);
+  --ok:#1f9d55;
+  --warn:#b7791f;
+  --dot-off:#e6e6e2;
+  --shadow-sm:0 1px 1px rgba(20,20,30,.04),0 1px 3px rgba(20,20,30,.05);
+  --shadow-md:0 1px 2px rgba(20,20,30,.04),0 4px 12px rgba(20,20,30,.05),0 16px 32px -12px rgba(20,20,30,.08);
+  --shadow-win:0 2px 4px rgba(20,20,30,.03),0 24px 48px -16px rgba(20,20,30,.14),0 64px 96px -32px rgba(20,20,30,.12);
+  --glow-a:#5b5cf0; --glow-b:#9ec5ff; --glow-c:#ffffff;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --canvas:#08090b; --shell:#111215; --surface:#18191d; --sunk:#1f2025;
+    --ink:#ececee; --ink-2:#a3a5ad; --ink-3:#8d8f97;
+    --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.1);
+    --accent:#7b7cff; --accent-ink:#0c0c16; --accent-soft:rgba(123,124,255,.14);
+    --ok:#4ade80; --warn:#e3b341; --dot-off:#25262c;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
+    --shadow-win:0 0 0 1px rgba(255,255,255,.04),0 32px 80px -24px rgba(0,0,0,.8);
+    --glow-a:#4b4cf0; --glow-b:#1d2c5c; --glow-c:#18191d;
+  }
+}
+:root[data-theme="dark"]{
+  --canvas:#08090b; --shell:#111215; --surface:#18191d; --sunk:#1f2025;
+  --ink:#ececee; --ink-2:#a3a5ad; --ink-3:#8d8f97;
+  --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.1);
+  --accent:#7b7cff; --accent-ink:#0c0c16; --accent-soft:rgba(123,124,255,.14);
+  --ok:#4ade80; --warn:#e3b341; --dot-off:#25262c;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
+  --shadow-win:0 0 0 1px rgba(255,255,255,.04),0 32px 80px -24px rgba(0,0,0,.8);
+  --glow-a:#4b4cf0; --glow-b:#1d2c5c; --glow-c:#18191d;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{font-family:"Geist",system-ui,sans-serif;color:var(--ink);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;min-height:100vh;padding:32px;transition:background .3s ease}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.mono{font-family:"Geist Mono",ui-monospace,monospace}
+.serif{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
+svg{display:block}
+.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- window ---------- */
+.win{max-width:1376px;margin:0 auto;background:var(--shell);border-radius:24px;box-shadow:var(--shadow-win);
+  display:grid;grid-template-columns:256px 1fr;min-height:calc(100vh - 64px);overflow:hidden;
+  border:1px solid var(--line)}
+
+/* ---------- sidebar ---------- */
+.side{padding:24px 16px;display:flex;flex-direction:column;gap:24px}
+.brand{display:flex;align-items:center;gap:8px;padding:0 8px;font-weight:600;font-size:18px;letter-spacing:-.02em}
+.mark{width:28px;height:28px;border-radius:8px;background:var(--ink);display:grid;place-items:center}
+.mark i{display:block;width:12px;height:12px;border-radius:50%;border:2px solid var(--shell);position:relative}
+.mark i::after{content:"";position:absolute;left:3px;top:0;width:1.5px;height:4px;background:var(--shell);border-radius:1px}
+.brand .collapse{margin-left:auto;color:var(--ink-3)}
+.me{display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px;background:var(--surface);
+  border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.avatar{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:600;font-size:12px;
+  background:linear-gradient(140deg,#c9c9f7,#e8dccb);color:#2b2b55}
+.me b{display:block;font-weight:500;font-size:13px}
+.me span{font-size:12px;color:var(--ink-3)}
+.me .i{margin-left:auto;color:var(--ink-3)}
+.grp-label{font-size:12px;color:var(--ink-3);padding:0 8px 8px;display:flex;justify-content:space-between;align-items:center}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;color:var(--ink-2);text-decoration:none;
+  font-size:14px;transition:background .15s ease,color .15s ease}
+.nav a:hover{background:var(--line);color:var(--ink)}
+.nav a.on{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm);border:1px solid var(--line);padding:7px}
+.nav .n{margin-left:auto;font-size:12px;color:var(--ink-3)}
+.nav .proj-dot{width:16px;height:16px;border-radius:5px;flex:none}
+.nav .add{color:var(--ink-3);font-size:13px}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.timer{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
+.timer .t-top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)}
+.live{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+.timer .t-name{font-size:13px;font-weight:500;margin-top:8px}
+.timer .t-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.timer .clock{font-size:22px;letter-spacing:-.02em;font-weight:500;font-variant-numeric:tabular-nums}
+.stop{width:32px;height:32px;border-radius:8px;background:var(--sunk);display:grid;place-items:center;color:var(--ink)}
+.stop i{width:10px;height:10px;border-radius:2px;background:currentColor}
+
+/* ---------- main ---------- */
+.main{background:var(--surface);margin:8px 8px 8px 0;border-radius:18px;border:1px solid var(--line);
+  display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;align-items:center;gap:16px;padding:16px 24px;border-bottom:1px solid var(--line)}
+.crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-3)}
+.crumb b{color:var(--ink);font-weight:500}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--sunk);border-radius:10px;padding:0 8px 0 12px;
+  height:36px;width:280px;color:var(--ink-3);font-size:13px}
+.kbd{margin-left:auto;font-size:11px;padding:2px 6px;border-radius:6px;background:var(--surface);border:1px solid var(--line);color:var(--ink-3)}
+.icon-btn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);border:1px solid var(--line);
+  transition:background .15s ease}
+.icon-btn:hover{background:var(--sunk)}
+.theme .sun{display:none}
+:root[data-theme="dark"] .theme .sun{display:block}
+:root[data-theme="dark"] .theme .moon{display:none}
+
+.page{padding:32px 32px 40px;display:flex;flex-direction:column;gap:24px}
+.head{display:flex;align-items:flex-end;gap:24px}
+.head h1{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1.1}
+.head h1 .serif{font-size:36px;letter-spacing:-.01em;color:var(--ink-2)}
+.head p{margin-top:8px;color:var(--ink-3);font-size:14px}
+.head p b{color:var(--ink-2);font-weight:500}
+.seg{display:inline-flex;gap:2px;padding:4px;background:var(--sunk);border-radius:12px}
+.seg button{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:8px;font-size:13px;color:var(--ink-3);
+  transition:background .2s ease,color .2s ease}
+.seg button.on{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm)}
+.head .seg{margin-left:auto}
+.btn{height:36px;padding:0 16px;border-radius:10px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 1px 2px rgba(30,30,120,.2),0 4px 12px -4px color-mix(in srgb,var(--accent) 60%,transparent)}
+.btn.ghost{color:var(--ink-2)}
+.btn.ghost:hover{background:var(--sunk)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:24px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* composer */
+.composer{display:flex;align-items:center;gap:12px;height:52px;padding:0 8px 0 16px;border-radius:14px;background:var(--surface);
+  border:1px solid var(--line-2);box-shadow:var(--shadow-sm)}
+.composer .plus{color:var(--ink-3)}
+.composer input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:14px;color:var(--ink)}
+.composer input::placeholder{color:var(--ink-3)}
+.composer:focus-within{border-color:color-mix(in srgb,var(--accent) 50%,transparent);box-shadow:0 0 0 4px var(--accent-soft)}
+.tokens{display:flex;gap:4px}
+.tok{font-size:11px;padding:4px 8px;border-radius:6px;background:var(--sunk);color:var(--ink-3)}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm)}
+.card-h{display:flex;align-items:center;gap:8px;padding:16px 16px 8px}
+.card-h .lbl{font-size:13px;font-weight:500}
+.card-h .count{font-size:13px;color:var(--ink-3)}
+.card-h .r{margin-left:auto;font-size:12px;color:var(--ink-3)}
+.cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+/* task list */
+.list{padding:0 8px 8px;display:flex;flex-direction:column}
+.task{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-radius:10px;
+  transition:background .15s ease}
+.task + .task{border-top:1px solid var(--line)}
+.task:hover{background:color-mix(in srgb,var(--sunk) 55%,transparent)}
+.chk{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--line-2);background:var(--surface)}
+.task .ttl{font-size:14px;font-weight:500;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;align-items:center;gap:12px;margin-top:4px;font-size:12px;color:var(--ink-3)}
+.meta span{white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.meta .i{width:13px;height:13px}
+.pdot{width:8px;height:8px;border-radius:3px}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2)}
+.est{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.over{color:var(--warn)}
+
+.task.next{background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow-md);margin:0 -4px 8px;padding:16px;border-radius:12px}
+.task.next + .task{border-top:0}
+.task.next .ttl{font-size:16px}
+.task.next .row-r{display:flex;align-items:center;gap:8px}
+.nexttag{font-size:11px;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:999px;font-weight:500}
+.task.done .ttl{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-2);font-weight:400}
+.task.done .chk{background:var(--ink);border-color:var(--ink);display:grid;place-items:center}
+.task.done .chk svg{stroke:var(--surface);width:12px;height:12px}
+.sub{padding:16px 12px 4px;font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between}
+
+/* day card w/ atmosphere */
+.day{position:relative;overflow:hidden;padding:20px;min-height:236px;display:flex;flex-direction:column}
+.day::before{content:"";position:absolute;inset:-40% -30% 30% -10%;
+  background:radial-gradient(60% 60% at 30% 35%,var(--glow-a) 0%,transparent 70%),
+             radial-gradient(55% 55% at 70% 25%,var(--glow-b) 0%,transparent 72%);
+  filter:blur(20px);opacity:.8}
+.day::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,var(--surface) 72%)}
+.day > *{position:relative;z-index:1}
+.day .top{display:flex;justify-content:space-between;align-items:center}
+.day .top .cap{color:var(--ink-2)}
+.day .big{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between}
+.day .big h2{font-size:15px;font-weight:500}
+.day .big p{font-size:13px;color:var(--ink-3);margin-top:4px}
+.day .pct{font-size:40px;font-weight:500;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.day .pct small{font-size:18px;color:var(--ink-3);margin-left:2px}
+.track{margin-top:16px;height:4px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.track i{display:block;height:100%;width:38%;background:var(--accent);border-radius:4px}
+
+/* stat rows */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--line)}
+.stat{padding:16px}
+.stat + .stat{border-left:1px solid var(--line)}
+.stat b{display:block;font-size:18px;font-weight:500;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+
+/* dot matrix */
+.matrix{padding:8px 16px 16px}
+.mx{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:120px}
+.mx .c{display:flex;flex-direction:column-reverse;gap:3px;align-items:center}
+.mx .c i{width:100%;max-width:28px;height:6px;border-radius:2px;background:var(--dot-off)}
+.mx .c i.f{background:var(--ink)}
+.mx .c.today i.f{background:var(--accent)}
+.mx-x{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;text-align:center;font-size:11px;color:var(--ink-3)}
+.mx-x .on{color:var(--ink);font-weight:500}
+
+/* schedule */
+.sched{padding:0 16px 16px;display:flex;flex-direction:column;gap:8px}
+.slot{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;font-size:12px}
+.slot .h{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.blk{padding:8px 12px;border-radius:10px;background:var(--sunk);font-size:13px;display:flex;justify-content:space-between}
+.blk span{color:var(--ink-3);font-size:12px}
+.blk.now{background:var(--accent-soft);color:var(--ink);box-shadow:inset 2px 0 0 var(--accent)}
+.blk.free{background:none;border:1px dashed var(--line-2);color:var(--ink-3)}
+
+/* switcher badge */
+.mode-note{position:fixed;right:24px;bottom:24px;display:flex;gap:2px;padding:4px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;box-shadow:var(--shadow-md);z-index:9}
+.mode-note button{height:28px;padding:0 12px;border-radius:8px;font-size:12px;color:var(--ink-3)}
+.mode-note button.on{background:var(--sunk);color:var(--ink);font-weight:500}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}}
+@media (max-width:820px){body{padding:0}.win{grid-template-columns:1fr;border-radius:0}.side{display:none}.main{margin:0;border-radius:0}
+  .page{padding:24px 16px}.head{flex-wrap:wrap}.head .seg{margin-left:0}.tokens,.search{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="M5 7h14M5 12h10M5 17h6"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path d="M6 19V11M12 19V5M18 19v-6"/></symbol>
+  <symbol id="cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M4.2 7.5l1.7 1M18.1 15.5l1.7 1M4.2 16.5l1.7-1M18.1 8.5l1.7-1"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></symbol>
+  <symbol id="panel" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M10 5v14"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/></symbol>
+  <symbol id="board" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+  <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="flag" viewBox="0 0 24 24"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-width="2.5"/></symbol>
+  <symbol id="dots" viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="2.5"/></symbol>
+  <symbol id="repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3M20 6H8a4 4 0 0 0-4 4M7 21l-3-3 3-3M4 18h12a4 4 0 0 0 4-4"/></symbol>
+</svg>
+
+<div class="win">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="side">
+    <div class="brand"><span class="mark"><i></i></span>Tempo<button class="collapse" aria-label="Collapse sidebar"><svg class="i"><use href="#panel"/></svg></button></div>
+
+    <div class="me">
+      <span class="avatar">PG</span>
+      <div><b>Purvarajsinh</b><span>Personal workspace</span></div>
+      <svg class="i"><use href="#updown"/></svg>
+    </div>
+
+    <div>
+      <div class="grp-label">Plan</div>
+      <nav class="nav">
+        <a class="on" href="#"><svg class="i"><use href="#today"/></svg>Today<span class="n">5</span></a>
+        <a href="#"><svg class="i"><use href="#up"/></svg>Next 7 days<span class="n">12</span></a>
+        <a href="#"><svg class="i"><use href="#cal"/></svg>Calendar</a>
+        <a href="#"><svg class="i"><use href="#chart"/></svg>Tracking</a>
+      </nav>
+    </div>
+
+    <div>
+      <div class="grp-label">Projects <svg class="i" style="width:14px;height:14px"><use href="#plus"/></svg></div>
+      <nav class="nav">
+        <a href="#"><span class="proj-dot" style="background:#8f8ff2"></span>MSM26<span class="n">9</span></a>
+        <a href="#"><span class="proj-dot" style="background:#7fb8a4"></span>Campus 2027<span class="n">4</span></a>
+        <a href="#"><span class="proj-dot" style="background:#d4c08a"></span>Home admin<span class="n">3</span></a>
+        <a href="#" class="add"><svg class="i"><use href="#plus"/></svg>New project</a>
+      </nav>
+    </div>
+
+    <div class="side-foot">
+      <div class="timer">
+        <div class="t-top"><span class="live"></span>Tracking now</div>
+        <div class="t-name">Sant Mahima backdrops</div>
+        <div class="t-row"><span class="clock">0:42:18</span><button class="stop" aria-label="Stop timer"><i></i></button></div>
+      </div>
+      <nav class="nav"><a href="#"><svg class="i"><use href="#cog"/></svg>Settings</a></nav>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <div class="bar">
+      <div class="crumb">Plan <svg class="i" style="width:12px;height:12px"><use href="#chev"/></svg> <b>Today</b></div>
+      <div class="search"><svg class="i"><use href="#search"/></svg>Search tasks, projects…<span class="kbd mono">⌘K</span></div>
+      <button class="icon-btn" aria-label="Notifications"><svg class="i"><use href="#bell"/></svg></button>
+      <button class="icon-btn theme" id="themeBtn" aria-label="Toggle theme"><svg class="i moon"><use href="#moon"/></svg><svg class="i sun"><use href="#sun"/></svg></button>
+    </div>
+
+    <div class="page">
+      <div class="head">
+        <div>
+          <h1>Thursday <span class="serif">12 November</span></h1>
+          <p><b>5 tasks</b> · 4h 20m planned · 2h 10m still free before 6pm</p>
+        </div>
+        <div class="seg" role="tablist">
+          <button class="on"><svg class="i"><use href="#list"/></svg>List</button>
+          <button><svg class="i"><use href="#board"/></svg>Board</button>
+          <button><svg class="i"><use href="#cal"/></svg>Day</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- left column -->
+        <div class="col">
+          <label class="composer">
+            <svg class="i plus"><use href="#plus"/></svg>
+            <input placeholder="Add a task — try “Call printer 20m tomorrow #MSM26”">
+            <span class="tokens"><span class="tok mono">20m</span><span class="tok mono">p1</span><span class="tok mono">#project</span></span>
+          </label>
+
+          <section class="card">
+            <div class="card-h"><span class="lbl">Today</span><span class="count">5</span><span class="r">Sorted by priority</span></div>
+            <div class="list">
+              <div class="task next">
+                <span class="chk"></span>
+                <div style="min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px"><span class="nexttag">Up next</span></div>
+                  <div class="ttl" style="margin-top:8px">Finalise Sabha venue in Central London</div>
+                  <div class="meta">
+                    <span><i class="pdot" style="background:#8f8ff2"></i>MSM26</span>
+                    <span><svg class="i"><use href="#clock"/></svg>45m</span>
+                    <span><svg class="i"><use href="#flag"/></svg>P1</span>
+                    <span class="over">Due 2pm</span>
+                  </div>
+                </div>
+                <div class="row-r">
+                  <button class="btn ghost">Not today</button>
+                  <button class="btn primary"><svg class="i" style="width:12px;height:12px"><use href="#play"/></svg>Start</button>
+                </div>
+              </div>
+
+              <div class="task">
+                <span class="chk"></span>
+                <div style="min-width:0"><div class="ttl">Approve Sant Mahima backdrop print proofs</div>
+                  <div class="meta"><span><i class="pdot" style="background:#8f8ff2"></i>MSM26</span><span class="pill">Design</span></div></div>
+                <span class="est">1h 30m</span>
+              </div>
+              <div class="task">
+                <span class="chk"></span>
+                <div style="min-width:0"><div class="ttl">Draft sponsor one-pager for Campus 2027</div>
+                  <div class="meta"><span><i class="pdot" style="background:#7fb8a4"></i>Campus 2027</span><span class="pill">Writing</span></div></div>
+                <span class="est">1h</span>
+              </div>
+              <div class="task">
+                <span class="chk"></span>
+                <div style="min-width:0"><div class="ttl">Book van for Saturday stage setup</div>
+                  <div class="meta"><span><i class="pdot" style="background:#8f8ff2"></i>MSM26</span><span>£86 quote from Hertz</span></div></div>
+                <span class="est">15m</span>
+              </div>
+              <div class="task">
+                <span class="chk"></span>
+                <div style="min-width:0"><div class="ttl">Pay council tax instalment</div>
+                  <div class="meta"><span><i class="pdot" style="background:#d4c08a"></i>Home admin</span><span><svg class="i"><use href="#repeat"/></svg>Monthly</span></div></div>
+                <span class="est">10m</span>
+              </div>
+
+              <div class="sub"><span>Done today · 3</span><span>1h 45m tracked</span></div>
+              <div class="task done">
+                <span class="chk"><svg class="i"><use href="#check"/></svg></span>
+                <div style="min-width:0"><div class="ttl">Reply to Kishore team about Sunday rota</div></div>
+                <span class="est">20m</span>
+              </div>
+              <div class="task done">
+                <span class="chk"><svg class="i"><use href="#check"/></svg></span>
+                <div style="min-width:0"><div class="ttl">Send lighting quote to Hiren</div></div>
+                <span class="est">35m</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- right column -->
+        <div class="col">
+          <section class="card" style="overflow:hidden">
+            <div class="day">
+              <div class="top"><span class="cap mono">Your day</span><span class="cap mono">12/11</span></div>
+              <div class="big">
+                <div><h2>Day progress</h2><p>3 of 8 tasks completed</p></div>
+                <div class="pct">38<small>%</small></div>
+              </div>
+              <div class="track"><i></i></div>
+            </div>
+            <div class="stats">
+              <div class="stat"><span class="cap mono">Planned</span><b>4h 20m</b></div>
+              <div class="stat"><span class="cap mono">Tracked</span><b>1h 45m</b></div>
+              <div class="stat"><span class="cap mono">Free</span><b>2h 10m</b></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><span class="lbl">This afternoon</span><span class="r mono">14:00 – 18:00</span></div>
+            <div class="sched">
+              <div class="slot"><span class="h mono">14:00</span><div class="blk now">Finalise Sabha venue<span>45m</span></div></div>
+              <div class="slot"><span class="h mono">14:45</span><div class="blk">Backdrop print proofs<span>1h 30m</span></div></div>
+              <div class="slot"><span class="h mono">16:15</span><div class="blk free">Free · fits the sponsor draft<span>1h 45m</span></div></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><span class="lbl">Tracked this week</span><span class="r">11h 20m</span></div>
+            <div class="matrix">
+              <div class="mx" id="mx"></div>
+              <div class="mx-x mono"><span>M</span><span>T</span><span>W</span><span class="on">T</span><span>F</span><span>S</span><span>S</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="mode-note" aria-label="Theme preview">
+  <button data-t="light">Light</button><button data-t="dark">Dark</button>
+</div>
+
+<script>
+// dot-matrix: 14 rows = 7h, each dot 30m
+const hours=[3,2.5,4,1.75,0,0,0], rows=14, mx=document.getElementById('mx');
+hours.forEach((h,d)=>{const c=document.createElement('div');c.className='c'+(d===3?' today':'');
+  const f=Math.round(h*2);for(let r=0;r<rows;r++){const i=document.createElement('i');if(r<f)i.className='f';c.appendChild(i)}mx.appendChild(c)});
+// theme
+const root=document.documentElement;
+function setT(t){root.dataset.theme=t;document.querySelectorAll('.mode-note button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  try{localStorage.setItem('soft-theme',t)}catch(e){}}
+let saved;try{saved=localStorage.getItem('soft-theme')}catch(e){}
+setT(new URLSearchParams(location.search).get('theme')||saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+document.querySelectorAll('.mode-note button').forEach(b=>b.onclick=()=>setT(b.dataset.t));
+document.getElementById('themeBtn').onclick=()=>setT(root.dataset.theme==='dark'?'light':'dark');
+</script>
+</body>
+</html>

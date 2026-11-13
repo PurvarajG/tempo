@@ -47,6 +47,39 @@ export async function updateTrackingSettings(
     sets.push(`hidden_nav_items = $${i++}`);
     vals.push(patch.hiddenNavItems);
   }
+  if (patch.todayCap !== undefined) {
+    sets.push(`today_cap = $${i++}`);
+    vals.push(patch.todayCap);
+  }
+  if (patch.dockBadge !== undefined) {
+    sets.push(`dock_badge = $${i++}`);
+    vals.push(patch.dockBadge);
+  }
+  if (patch.captureShortcut !== undefined) {
+    sets.push(`capture_shortcut = $${i++}`);
+    vals.push(patch.captureShortcut);
+  }
+  // null is meaningful here: it turns nudges off.
+  if (patch.nudgeMinutes !== undefined) {
+    sets.push(`nudge_minutes = $${i++}`);
+    vals.push(patch.nudgeMinutes);
+  }
+  if (patch.wrapHour !== undefined) {
+    sets.push(`wrap_hour = $${i++}`);
+    vals.push(patch.wrapHour);
+  }
+  if (patch.weeklyResetDay !== undefined) {
+    sets.push(`weekly_reset_day = $${i++}`);
+    vals.push(patch.weeklyResetDay);
+  }
+  if (patch.claudeAwareness !== undefined) {
+    sets.push(`claude_awareness = $${i++}`);
+    vals.push(patch.claudeAwareness);
+  }
+  if (patch.dateOrder !== undefined) {
+    sets.push(`date_order = $${i++}`);
+    vals.push(patch.dateOrder);
+  }
   if (sets.length === 0) return getTrackingSettings();
 
   const rows = await db.query<TrackingSettingsRow>(

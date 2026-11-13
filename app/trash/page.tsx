@@ -1,76 +1,134 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Task } from "@/lib/types";
-import { fmt } from "@/lib/format";
-import PageShell from "@/components/ui/PageShell";
+import TaskRow from "@/components/TaskRow";
+import Button from "@/components/ui/Button";
+import Card, { CardHeader } from "@/components/ui/Card";
+import Dialog from "@/components/ui/Dialog";
+import EmptyState from "@/components/ui/EmptyState";
+import Icon from "@/components/ui/Icon";
+import PageHead from "@/components/ui/PageHead";
+import { toISODate } from "@/lib/parse";
+import { useTasks } from "@/lib/store-context";
+import { useNow } from "@/lib/useNow";
 
 export default function TrashPage() {
+  const { restoreTask, undoOffer } = useTasks();
+  const now = useNow();
+  const todayISO = now ? toISODate(now) : "";
   const [tasks, setTasks] = useState<Task[]>([]);
   const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const restored = useRef(false);
+  const hadOffer = useRef(false);
 
+  const load = useCallback(
+    () =>
+      fetch("/api/tasks/trash")
+        .then((r) => r.json())
+        .then((list: Task[]) => setTasks(list)),
+    [],
+  );
+
+  // Loaded once on mount (ST-049).
   useEffect(() => {
-    fetch("/api/tasks/trash")
-      .then((r) => r.json())
-      .then(setTasks)
-      .finally(() => setReady(true));
-  }, []);
+    load().finally(() => setReady(true));
+  }, [load]);
+
+  // When the "Restored" offer closes, an Undo may have trashed the task again,
+  // so refetch the list. Harmless after a plain expiry.
+  useEffect(() => {
+    if (undoOffer) {
+      hadOffer.current = true;
+      return;
+    }
+    if (hadOffer.current && restored.current) {
+      hadOffer.current = false;
+      restored.current = false;
+      void load();
+    }
+  }, [undoOffer, load]);
 
   async function restore(id: string) {
+    restored.current = true;
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    await fetch(`/api/tasks/${id}/restore`, { method: "POST" });
+    await restoreTask(id);
   }
 
-  async function deleteForever(id: string) {
-    if (!confirm("Delete this task permanently? This can't be undone.")) return;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    await fetch(`/api/tasks/${id}/forever`, { method: "DELETE" });
+  async function deleteForever() {
+    if (!pending || deleting) return;
+    const id = pending.id;
+    setDeleting(true);
+    try {
+      await fetch(`/api/tasks/${id}/forever`, { method: "DELETE" });
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } finally {
+      setDeleting(false);
+      setPending(null);
+    }
   }
+
+  const subtitle = !ready
+    ? undefined
+    : tasks.length === 0
+      ? "Nothing in the trash."
+      : `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} in the trash.`;
 
   return (
-    <PageShell
-      label="Trash"
-      title={
-        <>
-          Let <span className="gradient-text">go</span>
-        </>
-      }
-    >
-      {ready && tasks.length === 0 && (
-        <p className="rounded-xl border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-          Nothing in the trash.
-        </p>
-      )}
+    <PageHead title="Trash" subtitle={subtitle}>
+      <div className="max-w-3xl">
+      <Card aria-labelledby="trash-title">
+        <CardHeader
+          titleId="trash-title"
+          icon={<Icon name="trash" size={16} />}
+          title="Trash"
+          count={ready ? tasks.length : undefined}
+        />
+        {ready && tasks.length > 0 && (
+          <ul className="task-list px-2 pb-2">
+            {tasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                todayISO={todayISO}
+                hideCheckbox
+                actions={
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => void restore(t.id)}>
+                      Restore
+                    </Button>
+                    <Button variant="ghost" size="sm" tone="danger" onClick={() => setPending(t)}>
+                      Delete forever
+                    </Button>
+                  </>
+                }
+              />
+            ))}
+          </ul>
+        )}
+        {ready && tasks.length === 0 && <EmptyState title="Nothing in the trash." />}
+      </Card>
+      </div>
 
-      <ul className="space-y-2.5">
-        {tasks.map((t) => (
-          <li
-            key={t.id}
-            className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-muted-foreground line-through">
-                {t.title}
-              </p>
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                {fmt(t.minutes)}
-              </p>
-            </div>
-            <button
-              onClick={() => restore(t.id)}
-              className="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-            >
-              Restore
-            </button>
-            <button
-              onClick={() => deleteForever(t.id)}
-              className="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-            >
+      <Dialog
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        role="alertdialog"
+        title={`Delete “${pending?.title ?? ""}” forever?`}
+        description="This cannot be undone."
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setPending(null)}>
+              Cancel
+            </Button>
+            <Button variant="primary" tone="danger" onClick={() => void deleteForever()}>
               Delete forever
-            </button>
-          </li>
-        ))}
-      </ul>
-    </PageShell>
+            </Button>
+          </>
+        }
+      />
+    </PageHead>
   );
 }

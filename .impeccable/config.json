@@ -1,0 +1,41 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "instrument sans",
+        "createdAt": "2026-11-12T14:53:28.239Z",
+        "reason": "Agent decision: Instrument Sans is the display face of the Ribbon/Fader direction the user chose over five alternatives; font itself not separately confirmed by the user"
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "docs/design/v2/v2_design/final/soft.html"
+        ],
+        "createdAt": "2026-11-12T16:06:47.740Z",
+        "reason": "user decision 2026-11-12 (Fader round): next task is the first, raised row of the task list"
+      },
+      {
+        "rule": "icon-tile-stack",
+        "value": "*",
+        "files": [
+          "brand/doem-design-language.html"
+        ],
+        "createdAt": "2026-11-13T13:16:06.175Z",
+        "reason": "Claude: page is a faithful dummy of the shipped app's Momentum card (soft.html), documenting existing design, not new UI"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "brand/doem-design-language.html"
+        ],
+        "createdAt": "2026-11-13T13:16:06.192Z",
+        "reason": "Claude: tag, pill and kbd chips copy the shipped app's sizes from app/globals.css for a design reference"
+      }
+    ]
+  }
+}

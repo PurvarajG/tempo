@@ -5,280 +5,228 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Tempo is a native Mac task manager and time tracker that keeps your data local."
+      content="Doem is a Mac app for tasks, planning and time tracking. Your data stays in a local database on your Mac. No account."
     />
-    <title>Tempo — Your day, at a glance</title>
-    <link rel="icon" href="tempo-mark.svg" type="image/svg+xml" />
-    <meta name="theme-color" content="#f3f1ec" />
+    <title>Doem — Your day, at a glance</title>
+    <link rel="icon" href="doem-mark.svg" type="image/svg+xml" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3f1ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1122" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Tempo — Your day, at a glance" />
+    <meta property="og:title" content="Doem — Your day, at a glance" />
     <meta
       property="og:description"
-      content="A native Mac task manager and time tracker. Local data, no account, no web service."
+      content="Tasks, planning and time tracking for Mac. Local database, no account."
     />
     <meta property="og:url" content="https://tempo-download.purvarajg1.chatgpt.site/" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="scene" aria-hidden="true"></div>
     <div class="site-shell">
       <header class="site-header">
-        <a class="brand" href="#top" aria-label="Tempo home">
-          <img src="tempo-mark.svg" alt="" width="38" height="38" />
-          <span>Tempo</span>
+        <a class="brand" href="#top" aria-label="Doem home">
+          <picture>
+            <source srcset="doem-lockup-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="doem-lockup-light.svg" alt="doem" width="110" height="40" />
+          </picture>
         </a>
         <nav class="site-nav" aria-label="Sections">
           <a href="#features">Features</a>
-          <a href="#shortcuts">Shortcuts</a>
-          <a href="#faq">FAQ</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#first-launch">First launch</a>
+          <a href="https://github.com/PurvarajG/doem" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
-        <a
-          class="header-link"
-          href="https://github.com/PurvarajG/TaskManager"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View source <span aria-hidden="true">↗</span>
-        </a>
       </header>
 
       <main id="top">
         <section class="hero" aria-labelledby="hero-title">
-          <div class="hero-copy">
-            <p class="eyebrow"><span class="eyebrow-mark"></span> Native for your real day</p>
-            <h1 id="hero-title">Make space for<br /><em>what matters.</em></h1>
-            <p class="intro">
-              Tempo is a thoughtful task manager and time tracker for Mac. See your day clearly,
-              stay close to your priorities, and let the rest wait.
-            </p>
-            <div class="hero-actions">
-              <a
-                class="download-button"
-                href="https://github.com/PurvarajG/TaskManager/releases/latest/download/Tempo-latest-arm64.dmg"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>Download for Apple Silicon</span>
-                <span class="button-arrow" aria-hidden="true">↓</span>
-              </a>
-              <p class="version-note">Free download · macOS · Apple Silicon</p>
-            </div>
+          <h1 id="hero-title">Your day, at a glance.</h1>
+          <p class="intro">
+            Doem is a Mac app for tasks, planning and time tracking, with your data kept on your own Mac.
+          </p>
+          <div class="hero-actions">
+            <a
+              class="download-button"
+              href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Download for Mac</span>
+              <span class="button-arrow" aria-hidden="true">↓</span>
+            </a>
+            <p class="version-note">Apple Silicon, macOS 12 or later · Version 1.0.0</p>
           </div>
 
-          <div class="product-frame" aria-label="A preview of Tempo's calm daily planning interface">
-            <div class="window-bar">
-              <span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span>
-              <span class="window-title">Tempo</span>
+          <figure class="window shot-hero">
+            <div class="window-bar" aria-hidden="true">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
             </div>
-            <div class="app-preview">
-              <aside class="preview-sidebar" aria-hidden="true">
-                <div class="preview-brand"><img src="tempo-mark.svg" alt="" /></div>
-                <span class="preview-nav active"></span>
-                <span class="preview-nav"></span>
-                <span class="preview-nav"></span>
-                <span class="preview-nav"></span>
-              </aside>
-              <div class="preview-content">
-                <div class="preview-topline">
-                  <div><span class="preview-overline">Thursday, 24 August</span><strong>Today</strong></div>
-                  <span class="preview-avatar">P</span>
-                </div>
-                <div class="focus-card">
-                  <span class="focus-label">IN FOCUS</span>
-                  <strong>Finish the details<br />that make it feel easy.</strong>
-                  <div class="focus-progress"><span></span></div>
-                </div>
-                <div class="preview-section-title"><span>Later today</span><span>2 tasks</span></div>
-                <div class="task-row"><span class="task-check"></span><span>Review weekly notes</span><time>2:00 PM</time></div>
-                <div class="task-row"><span class="task-check"></span><span>Make time for a walk</span><time>4:30 PM</time></div>
-              </div>
-            </div>
-          </div>
+            <picture>
+              <source srcset="media/today-dark.png" media="(prefers-color-scheme: dark)" />
+              <img
+                src="media/today-light.png"
+                alt="Doem's Today view: tasks due today with times, a running timer and the sidebar of lists and projects."
+                width="1600"
+                height="1000"
+                fetchpriority="high"
+              />
+            </picture>
+          </figure>
         </section>
-
-        <section class="reassurance" aria-label="Tempo principles">
-          <p><span class="principle-number">01</span> Your information stays on your Mac.</p>
-          <p><span class="principle-number">02</span> No account. No web service. No noise.</p>
-          <p><span class="principle-number">03</span> A calm place to return to, every day.</p>
-        </section>
-
 
         <section class="features" id="features" aria-labelledby="features-title">
           <div class="section-head">
-            <p class="eyebrow"><span class="eyebrow-mark"></span> What's inside</p>
-            <h2 id="features-title">Four views, one rhythm.</h2>
-            <p class="section-intro">
-              Tempo keeps the day, the month, and the hours you actually spent in the same
-              window — so planning and reviewing never means switching apps.
-            </p>
+            <p class="eyebrow">What's inside</p>
+            <h2 id="features-title">The day, the month and the hours, in one window.</h2>
           </div>
 
-          <div class="feature-grid">
-            <article class="feature-card">
-              <span class="feature-index">Today</span>
-              <h3>Start with what's in front of you</h3>
+          <article class="feature">
+            <div class="feature-copy">
+              <p class="feature-tag">Today</p>
+              <h3>Start with what's in front of you.</h3>
               <p>
-                Today opens on the tasks due now, with times, subtasks, and a focus item at the
-                top. Quick add captures a thought without leaving the list.
+                Today lists what is due now, with times and subtasks. Quick add captures a thought
+                without leaving the list, and a global shortcut opens a small capture window from any app.
               </p>
-              <div class="feature-art art-today" aria-hidden="true">
-                <span class="art-line done"><i></i>Draft the release notes</span>
-                <span class="art-line"><i></i>Review weekly notes<b>2:00 PM</b></span>
-                <span class="art-line"><i></i>Make time for a walk<b>4:30 PM</b></span>
-              </div>
-            </article>
+              <ul class="feature-points">
+                <li>Search and a command palette</li>
+                <li>Reminders and a running timer in the status bar</li>
+                <li>A wrap-up at the end of the day</li>
+              </ul>
+            </div>
+            <figure class="window">
+              <div class="window-bar" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+              <img src="media/today-light.png" alt="The Today view in light mode." width="1600" height="1000" loading="lazy" />
+            </figure>
+          </article>
 
-            <article class="feature-card">
-              <span class="feature-index">Calendar</span>
-              <h3>See the month without leaving the app</h3>
+          <article class="feature flip">
+            <div class="feature-copy">
+              <p class="feature-tag">Calendar</p>
+              <h3>See the month without leaving the app.</h3>
               <p>
-                A month grid with a day panel beside it. Subscribe to your tasks as a calendar
-                feed, and show your iCloud events alongside them.
+                A month grid with a panel for the selected day. Subscribe to your tasks as a calendar
+                feed, and show iCloud events beside them.
               </p>
-              <div class="feature-art art-calendar" aria-hidden="true">
-                <span></span><span></span><span class="marked"></span><span></span>
-                <span></span><span class="today"></span><span></span><span></span>
-                <span class="marked"></span><span></span><span></span><span></span>
-              </div>
-            </article>
+            </div>
+            <figure class="window">
+              <div class="window-bar" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+              <img src="media/calendar-light.png" alt="The Calendar view: a month grid with tasks on their days." width="1600" height="1000" loading="lazy" />
+            </figure>
+          </article>
 
-            <article class="feature-card">
-              <span class="feature-index">Tracking</span>
-              <h3>Know where the hours went</h3>
+          <article class="feature">
+            <div class="feature-copy">
+              <p class="feature-tag">Tracking</p>
+              <h3>Know where the hours went.</h3>
               <p>
-                Track time against a task or a category, fill the gaps you missed, and read the
-                day back as a ribbon with rollups and signals.
+                Track time against a task or a category, fill in the gaps you missed, and read the
+                day back with rollups for the week.
               </p>
-              <div class="feature-art art-track" aria-hidden="true">
-                <span class="seg a"></span><span class="seg b"></span><span class="seg gap"></span>
-                <span class="seg c"></span><span class="seg a"></span>
-              </div>
-            </article>
+            </div>
+            <figure class="window">
+              <div class="window-bar" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+              <img src="media/tracking-light.png" alt="The Tracking view: the day's logged time with totals." width="1600" height="1000" loading="lazy" />
+            </figure>
+          </article>
 
-            <article class="feature-card">
-              <span class="feature-index">Projects</span>
-              <h3>Move work across stages</h3>
+          <article class="feature flip">
+            <div class="feature-copy">
+              <p class="feature-tag">Projects</p>
+              <h3>Move work across stages.</h3>
               <p>
-                Every project gets a board with stages you define. Drag a card forward when it
-                moves — the task stays the same task everywhere else.
+                Each project has a board with stages you define. Drag a card forward when the work
+                moves; it is the same task everywhere else in the app.
               </p>
-              <div class="feature-art art-board" aria-hidden="true">
-                <span class="col"><i></i><i></i></span>
-                <span class="col"><i class="accent"></i></span>
-                <span class="col"><i></i><i></i></span>
-              </div>
-            </article>
-          </div>
+            </div>
+            <figure class="window">
+              <div class="window-bar" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+              <img src="media/project-board-light.png" alt="A project board with tasks in stages." width="1600" height="1000" loading="lazy" />
+            </figure>
+          </article>
         </section>
 
-        <section class="shortcuts" id="shortcuts" aria-labelledby="shortcuts-title">
+        <section class="keys" aria-labelledby="keys-title">
           <div>
             <p class="eyebrow">Native where it counts</p>
-            <h2 id="shortcuts-title">Hands stay<br />on the keyboard.</h2>
-            <p class="section-intro">
-              A real Mac menu bar, real shortcuts, and a running timer in the status bar so you
-              can start and stop without opening the window.
-            </p>
+            <h2 id="keys-title">Hands stay on the keyboard.</h2>
+            <p class="section-intro">A real Mac menu bar with the shortcuts you would expect.</p>
           </div>
           <ul class="shortcut-list">
-            <li><span>New task</span><kbd>⌘</kbd><kbd>N</kbd></li>
-            <li><span>Search</span><kbd>⌘</kbd><kbd>F</kbd></li>
-            <li><span>Today</span><kbd>⌘</kbd><kbd>1</kbd></li>
-            <li><span>Calendar</span><kbd>⌘</kbd><kbd>2</kbd></li>
-            <li><span>Tracking</span><kbd>⌘</kbd><kbd>3</kbd></li>
-            <li><span>Settings</span><kbd>⌘</kbd><kbd>,</kbd></li>
+            <li><span>Search</span><span><kbd>⌘</kbd><kbd>F</kbd></span></li>
+            <li><span>Inbox</span><span><kbd>⌘</kbd><kbd>0</kbd></span></li>
+            <li><span>Today</span><span><kbd>⌘</kbd><kbd>1</kbd></span></li>
+            <li><span>Calendar</span><span><kbd>⌘</kbd><kbd>2</kbd></span></li>
+            <li><span>Tracking</span><span><kbd>⌘</kbd><kbd>3</kbd></span></li>
+            <li><span>Wrap up the day</span><span><kbd>⌘</kbd><kbd>⇧</kbd><kbd>E</kbd></span></li>
           </ul>
         </section>
 
-        <section class="details" aria-labelledby="details-title">
-          <div>
-            <p class="eyebrow">Made for the Mac</p>
-            <h2 id="details-title">Quietly capable.<br />Deliberately local.</h2>
+        <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+          <p class="eyebrow">Privacy</p>
+          <h2 id="privacy-title">Local by design.</h2>
+          <div class="privacy-grid">
+            <div>
+              <h3>A local database</h3>
+              <p>
+                Your tasks live in local PGlite data on your Mac, in
+                <code>~/Library/Application Support/Doem</code>. Nothing is uploaded.
+              </p>
+            </div>
+            <div>
+              <h3>No account</h3>
+              <p>There is nothing to sign up for and no server to sign in to. This page has no tracking scripts.</p>
+            </div>
+            <div>
+              <h3>Backups are yours</h3>
+              <p>Time Machine covers it. To copy the folder by hand, quit Doem first.</p>
+            </div>
           </div>
-          <dl>
-            <div>
-              <dt>Requirements</dt>
-              <dd>Apple Silicon Mac<br />macOS 13 or later</dd>
-            </div>
-            <div>
-              <dt>Your data</dt>
-              <dd>Your local PGlite data stays yours.<br />Nothing to sign up for.</dd>
-            </div>
-            <div>
-              <dt>Need a hand?</dt>
-              <dd><a href="https://github.com/PurvarajG/TaskManager" target="_blank" rel="noreferrer">Source &amp; releases <span aria-hidden="true">↗</span></a></dd>
-            </div>
-          </dl>
         </section>
 
-        <section class="faq" id="faq" aria-labelledby="faq-title">
-          <div class="section-head">
-            <p class="eyebrow">Before you download</p>
-            <h2 id="faq-title">Good to know.</h2>
+        <section class="launch" id="first-launch" aria-labelledby="launch-title">
+          <div>
+            <p class="eyebrow">First launch</p>
+            <h2 id="launch-title">The app is not signed yet.</h2>
           </div>
-          <div class="faq-list">
-            <details>
-              <summary>macOS says the app can't be opened. What now?</summary>
-              <p>
-                The build is unsigned, so Gatekeeper stops the first launch. Right-click Tempo in
-                Applications, choose Open, then confirm — macOS remembers the choice from then on.
-              </p>
-            </details>
-            <details>
-              <summary>Where does my data live?</summary>
-              <p>
-                In a local PGlite database at
-                <code>~/Library/Application Support/Tempo/pglite</code>. Nothing is uploaded, and
-                there is no server to sign in to.
-              </p>
-            </details>
-            <details>
-              <summary>How do I back it up?</summary>
-              <p>
-                Time Machine is the supported route. To copy the folder by hand, quit Tempo first
-                so the database is not mid-write.
-              </p>
-            </details>
-            <details>
-              <summary>Does it work on an Intel Mac?</summary>
-              <p>
-                The published DMG is Apple Silicon only. On an Intel Mac you can still build from
-                source with <code>npm run electron:build</code>.
-              </p>
-            </details>
-            <details>
-              <summary>How do updates work?</summary>
-              <p>
-                Download the latest DMG from this page — the link always points at the newest
-                release — and replace the app. Your database stays where it is.
-              </p>
-            </details>
+          <div class="launch-body">
+            <p>
+              Doem is not signed with an Apple Developer ID, so macOS may refuse to open it the
+              first time. Open the DMG, drag Doem to Applications, then:
+            </p>
+            <ol>
+              <li>Right-click Doem in Applications and choose Open.</li>
+              <li>Confirm in the dialog. macOS remembers the choice afterwards.</li>
+            </ol>
+            <p class="small">If macOS still blocks it, allow it under System Settings, Privacy &amp; Security.</p>
           </div>
         </section>
 
         <section class="closer" aria-labelledby="closer-title">
-          <h2 id="closer-title">Your day, at a glance.</h2>
+          <h2 id="closer-title">Make space for what matters.</h2>
           <a
             class="download-button"
-            href="https://github.com/PurvarajG/TaskManager/releases/latest/download/Tempo-latest-arm64.dmg"
+            href="https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span>Download for Apple Silicon</span>
+            <span>Download for Mac</span>
             <span class="button-arrow" aria-hidden="true">↓</span>
           </a>
-          <p class="version-note">Free download · macOS 13 or later · Apple Silicon</p>
+          <p class="version-note">Apple Silicon, macOS 12 or later. Intel Macs can build from source.</p>
         </section>
       </main>
 
       <footer>
-        <span>Tempo for macOS</span>
+        <span>Doem 1.0.0</span>
         <nav class="footer-links" aria-label="Footer">
-          <a href="https://github.com/PurvarajG/TaskManager" target="_blank" rel="noreferrer">Source</a>
-          <a href="https://github.com/PurvarajG/TaskManager/releases" target="_blank" rel="noreferrer">Releases</a>
-          <a href="https://github.com/PurvarajG/TaskManager/issues" target="_blank" rel="noreferrer">Report an issue</a>
+          <a href="https://github.com/PurvarajG/doem" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/PurvarajG/doem/releases/latest" target="_blank" rel="noreferrer">Release notes</a>
+          <a href="https://github.com/PurvarajG/doem/issues" target="_blank" rel="noreferrer">Report an issue</a>
         </nav>
-        <span>Built for a more intentional day.</span>
       </footer>
     </div>
   </body>

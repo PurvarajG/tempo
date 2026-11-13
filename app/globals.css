@@ -27,53 +27,161 @@
    on top of it. */
 @custom-variant rail (@media (min-width: 1200px));
 
+
 /* ─────────────────────────────────────────────
-   Design tokens. Tailwind v4 reads @theme and
-   generates the utilities, so there's one source
-   of truth and no tailwind.config.ts to drift.
+   Design tokens (Doem v2, "Soft Studio"). Tailwind v4 reads @theme and
+   generates the utilities, so there's one source of truth and no
+   tailwind.config.ts to drift.
+
+   `static` makes Tailwind emit every token even when no utility class names
+   it: components read several of these only through var(--color-…) in
+   inline styles or plain CSS, which Tailwind's class scanner never sees.
+   Values here are the LIGHT theme; the dark values live in --dark-* below
+   and are swapped in by the two dark blocks.
    ───────────────────────────────────────────── */
-@theme {
-  --color-background: #fafafa;
-  --color-foreground: #0f172a;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-accent: #0052ff;
-  --color-accent-secondary: #4d7cff;
-  --color-accent-foreground: #ffffff;
-  --color-border: #e2e8f0;
-  --color-card: #ffffff;
+@theme static {
+  /* v2 colours */
+  --color-shell: rgba(246, 246, 243, 0.78);
+  /* Glass edge of the window (soft.html .win border). */
+  --color-win-edge: rgba(255, 255, 255, 0.5);
+  --color-surface: #ffffff;
+  --color-raised: #ffffff;
+  --color-sunk: #f1f1ee;
+  --color-ink: #141519;
+  --color-ink-2: #4f5159;
+  --color-ink-3: #64666d;
+  --color-ink-dim: #8d8f97;
+  --color-line: rgba(20, 21, 25, 0.07);
+  --color-line-2: rgba(20, 21, 25, 0.12);
+  /* Control outline that reaches 3:1 (checkbox, input at rest). The ink
+     colour at the lowest alpha that clears 3:1 on surface, raised and sunk. */
+  --color-line-strong: rgba(20, 21, 25, 0.47);
+  --color-accent: #4a4ae8;
+  --color-accent-ink: #ffffff;
+  --color-accent-soft: rgba(74, 74, 232, 0.09);
+  --color-hi: #bd2f2f;
+  --color-hi-bg: rgba(214, 69, 69, 0.08);
+  --color-med: #8a5d00;
+  --color-med-bg: rgba(201, 140, 20, 0.1);
+  --color-ok: #117a45;
+  --color-off: #e7e7e3;
+  --color-glow-a: #4f50ee;
+  --color-glow-b: #a8c8ff;
+  --color-scrim: rgba(20, 21, 25, 0.32);
 
-  --font-display: var(--font-calistoga), Georgia, serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  /* Scene behind the frosted window (soft.html --scene-1..4). The web build
+     paints it on html/body; the desktop build keeps macOS vibrancy instead. */
+  --color-scene-1: #b9c3ec;
+  --color-scene-2: #dfe1f1;
+  --color-scene-3: #f3e4d4;
+  --color-scene-4: #e9c9a8;
+  /* Profile avatar gradient (soft.html .avatar). Same in both themes. */
+  --color-avatar-from: #c9c9f7;
+  --color-avatar-to: #efd9c2;
+  --color-avatar-ink: #2b2b55;
 
-  /* Derived from the current --color-accent (a custom property reference
-     resolves at use-time, not definition-time) so these automatically
-     follow the accent token in every theme instead of hardcoding the
-     light-mode blue.
+  /* Drop Tailwind's built-in shadow-sm/md theme values; the runtime tokens are in :root below. */
+  --shadow-sm: initial;
+  --shadow-md: initial;
 
-     Lightning CSS compiles a pre-color-mix fallback for these behind
-     `@supports (color: color-mix(in lab, red, red))`, and that fallback IS
-     the light-mode blue this phase set out to eliminate. Left as-is
-     deliberately: it is unreachable dead weight, not a live regression.
-     Every engine this app ships to — Chromium in the Electron target, and
-     Chrome/Safari/Firefox for the web build — has supported color-mix()
-     since 2023 (well before this app existed), so the @supports check
-     always passes and the branch above it never executes. Hand-writing a
-     theme-aware fallback would mean re-duplicating a --dark-accent lookup
-     here, the exact drift risk this phase's palette de-dup exists to
-     prevent, for a branch no shipped browser can reach. */
-  --shadow-accent: 0 4px 14px color-mix(in srgb, var(--color-accent) 25%, transparent);
-  --shadow-accent-lg: 0 8px 24px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  /* Radius. Pills use rounded-full. Tailwind's rounded-sm/md/lg/xl stay. */
+  --radius-check: 6px;
+  --radius-tile: 8px;
+  --radius-tab: 10px;
+  --radius-row: 12px;
+  --radius-composer: 14px;
+  --radius-card: 18px;
+  --radius-panel: 22px;
+  --radius-kpi: 16px;
+  --radius-dot: 1.5px;
+  --radius-pdot: 3px;
+  --radius-logo: 7px;
+  --radius-timer: 16px;
+  --radius-me: 14px;
+  --radius-stop: 2px;
 
-  /* For elevated surfaces whose own background is INVERTED relative to the
-     page (the Up Next card: bg-foreground on a bg-background page). In light
-     mode --color-foreground is near-black, so deriving the shadow from it
-     gives an ordinary dark drop shadow. In dark mode that same derivation
-     inverted into a near-WHITE cast — a halo ringing the focus card rather
-     than a shadow under it — so dark mode gets its own literal value below
-     (--dark-shadow-elevated) instead of inheriting this one. */
-  --shadow-elevated: 0 20px 50px -12px color-mix(in srgb, var(--color-foreground) 35%, transparent);
+  /* Type scale */
+  --text-h1: 34px;
+  --text-h1--line-height: 1.05;
+  --text-h1--letter-spacing: -0.035em;
+  --text-h1--font-weight: 500;
+  --text-moment: 34px;
+  --text-moment--line-height: 1.1;
+  --text-moment--letter-spacing: -0.01em;
+  --text-big: 36px;
+  --text-big--line-height: 1;
+  --text-big--letter-spacing: -0.045em;
+  --text-big--font-weight: 500;
+  --text-kpi: 24px;
+  --text-kpi--letter-spacing: -0.04em;
+  --text-kpi--font-weight: 500;
+  --text-upnext: 17px;
+  --text-upnext--letter-spacing: -0.015em;
+  --text-upnext--font-weight: 500;
+  --text-title: 15px;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 500;
+  --text-card-title: 14px;
+  --text-card-title--line-height: 1.35;
+  --text-card-title--letter-spacing: -0.005em;
+  --text-card-title--font-weight: 500;
+  --text-day-num: 32px;
+  --text-day-num--line-height: 1;
+  --text-day-num--letter-spacing: -0.05em;
+  --text-day-num--font-weight: 500;
+  --text-cal-day: 18px;
+  --text-cal-day--line-height: 1.4;
+  --text-cal-day--letter-spacing: -0.03em;
+  --text-cal-day--font-weight: 500;
+  --text-cal-today: 15px;
+  --text-cal-today--line-height: 32px;
+  --text-cal-today--letter-spacing: -0.03em;
+  --text-cal-today--font-weight: 500;
+  --text-pm-value: 22px;
+  --text-pm-value--line-height: 1.45;
+  --text-pm-value--letter-spacing: -0.04em;
+  --text-pm-value--font-weight: 500;
+  --text-chart-total: 28px;
+  --text-chart-total--line-height: 1;
+  --text-chart-total--letter-spacing: -0.04em;
+  --text-chart-total--font-weight: 500;
+  --text-logo: 16px;
+  --text-logo--line-height: 1;
+  --text-logo--font-weight: 600;
+  --text-brand: 20px;
+  --text-brand--line-height: 1.45;
+  --text-brand--letter-spacing: -0.03em;
+  --text-brand--font-weight: 600;
+  --text-nav-row: 15px;
+  --text-nav-row--line-height: 1.45;
+  --text-nav-row--letter-spacing: -0.01em;
+  --text-logo-tile: 10px;
+  --text-logo-tile--line-height: 1.45;
+  --text-logo-tile--font-weight: 600;
+  --text-clock: 24px;
+  --text-clock--line-height: 1.45;
+  --text-clock--letter-spacing: -0.03em;
+  --text-clock--font-weight: 500;
+  --text-body: 14px;
+  --text-body--line-height: 1.45;
+  --text-secondary: 13px;
+  --text-meta: 12px;
+  --text-caption: 11px;
+  --tracking-caption: 0.07em;
+
+  /* Phase 5F. These reference other colour vars, so they resolve against
+     the dark values too. */
+  --shadow-primary: 0 1px 2px rgba(30, 30, 120, 0.2),
+    0 6px 16px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+  --shadow-now-edge: inset 2px 0 0 var(--color-accent);
+  --shadow-hairline-top: 0 -1px 0 var(--color-line);
+  --shadow-logo: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  --shadow-live: 0 0 0 3px color-mix(in srgb, var(--color-ok) 22%, transparent);
+  --color-row-hover: color-mix(in srgb, var(--color-sunk) 60%, transparent);
+  /* Glyph on the Momentum tile: white in both themes (accent-ink goes dark
+     in dark mode and would not read on the tile). */
+  --color-mom-glyph: #ffffff;
+  --color-mom-tile: color-mix(in srgb, var(--color-glow-a) 70%, #0b0b30);
 
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -92,147 +200,160 @@
   --width-nav-rail: 12.5rem;
 
   /* Category palette. Categories store the token name ("cat-indigo"), never a
-     hex value, so recolouring the theme recolours every category with it. */
-  --color-cat-indigo: #4f46e5;
-  --color-cat-slate: #475569;
-  --color-cat-violet: #7c3aed;
-  --color-cat-emerald: #059669;
-  --color-cat-amber: #d97706;
-  --color-cat-rose: #e11d48;
-  --color-cat-cyan: #0891b2;
-  --color-cat-neutral: #737373;
+     hex value, so recolouring the theme recolours every category with it.
+     Retuned to sit with the v2 palette (from --pm / --pc / --ph); no orange.
+     Each is at least 3:1 as a dot on surface in its theme. */
+  --color-cat-indigo: #4f51e0;
+  --color-cat-slate: #5b6070;
+  --color-cat-violet: #7a4fd0;
+  --color-cat-emerald: #2b7f67;
+  --color-cat-amber: #8f6a28;
+  --color-cat-rose: #c23b62;
+  --color-cat-cyan: #1f7a99;
+  --color-cat-neutral: #767780;
 
-  /* Roles introduced by the Tempo-focus prototype (design-prototypes/tempo-focus):
-     the charcoal nav rail, its inverted-surface "focus card" ink, and the
-     warm attention callout used for overdue/stalled items. Kept as distinct
-     roles rather than reusing --color-accent/--color-foreground so the rail
-     and the focus card can stay dark even when the rest of the app is in
-     light mode. */
+  /* Legacy nav tokens (read by tests/ui/v2-contrast). The row type token is
+     --text-nav-row, not --text-nav: Tailwind would read a --color-nav and a
+     --text-nav pair as one name and paint the row text this colour. */
   --color-nav: #313333;
-  --color-nav-foreground: #aeb5c1;
-  --color-nav-hover: #3b3e40;
-  --color-nav-active: #075cf6;
-  --color-ink: #101a34;
-  --color-ink-foreground: #f1f5f9;
-  --color-attention: #ff692e;
-  --color-attention-surface: #fff7f4;
-  --color-attention-border: #f2ddd5;
 
-  /* Distinct from --color-attention (overdue/stalled) so the calendar's
-     now-line never carries the same meaning as an overdue chip that can sit
-     right beside it on the same hour grid. */
-  --color-now: #e11d48;
+  /* Project palette, indexed by projectColorVar(). Light values are
+     read as BARS with white text on them as well as dots, so each is at
+     least 4.5:1 against white (and so at least 3:1 as a dot). Started from
+     --pm (indigo), --pc (green) and --ph (ochre); no orange. */
+  --color-project-1: #6466e6;
+  --color-project-2: #7a4fd0;
+  --color-project-3: #c2417f;
+  --color-project-4: #c73a3a;
+  --color-project-5: #8f6a28;
+  --color-project-6: #2b7f67;
+  --color-project-7: #1f7a99;
 
-  /* Same values as PROJECT_COLORS (lib/types.ts) in light mode — this block
-     exists so dark mode has somewhere to hang a lightened counterpart via
-     projectColorVar(), same pattern as the --color-cat-* / --dark-cat-* pair
-     above. */
-  --color-project-1: #0052ff;
-  --color-project-2: #7c3aed;
-  --color-project-3: #db2777;
-  --color-project-4: #dc2626;
-  /* The last three are a step darker than the swatches they map from
-     (#ea580c / #16a34a / #0891b2). Those read fine as dots, but the day
-     timeline paints project colour as a BAR with text on it, and white on
-     mid-tone orange/green/cyan measured 3.3-3.7:1 — below the 4.5:1 floor.
-     Darkening the token fixes every bar at once and keeps the hue; the
-     stored project hex is unchanged, since projectColorVar maps by index. */
-  --color-project-5: #c2410c;
-  --color-project-6: #15803d;
-  --color-project-7: #0e7490;
-
-  /* Text painted on top of a project-colour bar/chip. Every light-mode token
-     above clears 4.5:1 against white (4.60 at the floor, project-3, up to 5.75);
-     their lightened dark-mode counterparts below do not, so this pairs with a
-     dark ink value there — same paired-token pattern as --color-project-N /
-     --dark-project-N. */
+  /* Text painted on top of a project-colour bar/chip; the dark-mode
+     counterparts are lightened, so they pair with a dark ink there. */
   --color-project-foreground: #ffffff;
+  /* Initial on a sidebar project logo tile: white in both themes, as soft.html
+     .logo. The glyph is aria-hidden (the project name follows it). */
+  --color-logo-ink: #ffffff;
+}
+
+/* Fonts. The three --font-geist* variables are defined on <html> by
+   next/font (app/layout.tsx). `inline` makes the utilities and the body rule
+   use var(--font-geist) directly instead of an extra indirection that could
+   resolve on the wrong element. */
+@theme static inline {
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-moment: var(--font-instrument-serif), Georgia, serif;
 }
 
 /* Single source of truth for the dark palette's VALUES. Neither selector
    below can apply unconditionally — one is gated by the OS media query, the
    other by the explicit data-theme toggle — so the two rule bodies below
-   still have to list the same 25 properties each. But every value here is a
+   still have to list the same properties each. But every value here is a
    var() reference into this block, so the two can never drift out of sync
    with each other; change a color once, both paths pick it up. */
 :root {
-  --dark-background: #0b0d10;
-  --dark-foreground: #f1f5f9;
-  --dark-muted: #171a1f;
-  --dark-muted-foreground: #8b95a3;
-  --dark-accent: #4d7cff;
-  --dark-accent-secondary: #7c9bff;
-  --dark-accent-foreground: #ffffff;
-  --dark-border: #23272e;
-  --dark-card: #14171c;
+  --dark-shell: rgba(18, 19, 24, 0.72);
+  --dark-win-edge: rgba(255, 255, 255, 0.07);
+  --dark-surface: #17181c;
+  --dark-raised: #1d1e23;
+  --dark-sunk: #202127;
+  --dark-ink: #ededef;
+  --dark-ink-2: #a6a8b0;
+  --dark-ink-3: #8d8f97;
+  --dark-ink-dim: #75777f;
+  --dark-line: rgba(255, 255, 255, 0.06);
+  --dark-line-2: rgba(255, 255, 255, 0.11);
+  --dark-line-strong: rgba(237, 237, 239, 0.37);
+  --dark-accent: #8a8bff;
+  --dark-accent-ink: #0b0b18;
+  --dark-accent-soft: rgba(125, 126, 255, 0.14);
+  --dark-hi: #f07a7a;
+  --dark-hi-bg: rgba(240, 122, 122, 0.12);
+  --dark-med: #e6b84f;
+  --dark-med-bg: rgba(230, 184, 79, 0.12);
+  --dark-ok: #4ade80;
+  --dark-off: #26272d;
+  --dark-glow-a: #3c3dd6;
+  --dark-glow-b: #1c2f6b;
+  --dark-scrim: rgba(0, 0, 0, 0.55);
+  --dark-scene-1: #1a1f45;
+  --dark-scene-2: #0f1122;
+  --dark-scene-3: #14121a;
+  --dark-scene-4: #2b1d2e;
+  --dark-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --dark-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
 
-  /* Lighter, less saturated than the light palette so tints stay legible on #0b0d10. */
-  --dark-cat-indigo: #818cf8;
-  --dark-cat-slate: #94a3b8;
+  /* Lighter than the light palette so dots stay legible on --dark-surface. */
+  --dark-cat-indigo: #8486f2;
+  --dark-cat-slate: #9ca3b4;
   --dark-cat-violet: #a78bfa;
-  --dark-cat-emerald: #34d399;
-  --dark-cat-amber: #fbbf24;
-  --dark-cat-rose: #fb7185;
-  --dark-cat-cyan: #22d3ee;
-  --dark-cat-neutral: #a3a3a3;
+  --dark-cat-emerald: #4fb898;
+  --dark-cat-amber: #d4a64f;
+  --dark-cat-rose: #f08aa4;
+  --dark-cat-cyan: #4fb6d6;
+  --dark-cat-neutral: #a3a3a8;
 
-  /* Tempo-focus roles in dark mode. The nav rail is already an opaque dark
-     surface in light mode, so it carries over unchanged — it never needs to
-     get "darker". Ink and attention are page surfaces, though, and do need
-     dark-mode counterparts: the focus card lightens slightly off the
-     near-black page so it still reads as an elevated surface, and the warm
-     attention callout swaps its near-white surface for a dark warm tint so
-     it doesn't paint a light hole into a dark page. */
-  --dark-nav: #313333;
-  --dark-nav-foreground: #aeb5c1;
-  --dark-nav-hover: #3b3e40;
-  --dark-nav-active: #4d7cff;
-  --dark-ink: #1b2747;
-  /* The ink surface is deliberately dark in both themes, so its foreground
-     stays the same light value in both — no lightening/darkening swap
-     needed here, unlike attention below. Still listed explicitly per the
-     "both bodies list every property" contract above. */
-  --dark-ink-foreground: #f1f5f9;
-  --dark-attention: #ff8259;
-  --dark-attention-surface: #2a1f1c;
-  --dark-attention-border: #4a352c;
-
-  --dark-now: #fb7185;
-
-  /* Lighter, less saturated than the light PROJECT_COLORS so chips and their
-     3px left bar stay legible against #14171c (card) and #0b0d10 (page). */
-  --dark-project-1: #6d93ff;
-  --dark-project-2: #a78bfa;
-  --dark-project-3: #f472b6;
-  --dark-project-4: #f87171;
-  --dark-project-5: #fb923c;
-  --dark-project-6: #4ade80;
-  --dark-project-7: #22d3ee;
+  /* Lighter than the light PROJECT_COLORS so chips and their 3px left bar
+     stay legible on dark surfaces and on the charcoal nav rail. 1, 5 and 6
+     are soft.html's dark --pm, --ph and --pc; 2, 3, 4 and 7 follow the same
+     small lift. Each takes the dark ink below at 4.5:1 and the white logo
+     initial (--color-logo-ink) at 3:1, as soft.html's dark .logo does. */
+  --dark-project-1: #7375ee;
+  --dark-project-2: #9070e0;
+  --dark-project-3: #e0609a;
+  --dark-project-4: #e86060;
+  --dark-project-5: #9c7631;
+  --dark-project-6: #3a8f75;
+  --dark-project-7: #3a94b4;
 
   /* Dark ink counterpart to --color-project-foreground: the dark-project-N
      set is lightened, so text on top needs to go dark instead of white. */
-  --dark-project-foreground: #14171c;
+  --dark-project-foreground: #0b0b18;
 
-  /* Dark mode's elevated shadow is a fixed black, not a --color-foreground
-     derivation: the ink card sits LIGHTER than the near-black page here, so
-     it needs a real shadow beneath it. See --shadow-elevated above. */
-  --dark-shadow-elevated: 0 20px 50px -12px rgb(0 0 0 / 0.65);
+  /* Light shadows; the dark blocks below reassign these from --dark-shadow-*. */
+  --shadow-sm: 0 1px 1px rgba(20, 20, 30, 0.04), 0 1px 3px rgba(20, 20, 30, 0.05);
+  --shadow-md: 0 1px 2px rgba(20, 20, 30, 0.04), 0 6px 16px -4px rgba(20, 20, 30, 0.07),
+    0 20px 40px -16px rgba(20, 20, 30, 0.1);
 }
 
 /* Dark palette follows the OS by default; an explicit toggle (data-theme on
    <html>) always wins over that default in either direction. Both blocks
-   below assign from the --dark-* set above — see the comment on that block. */
+   below assign from the --dark-* set above — see the comment on that block.
+   The nav tokens are the same in both themes and so are not listed. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-background: var(--dark-background);
-    --color-foreground: var(--dark-foreground);
-    --color-muted: var(--dark-muted);
-    --color-muted-foreground: var(--dark-muted-foreground);
+    --color-shell: var(--dark-shell);
+    --color-win-edge: var(--dark-win-edge);
+    --color-surface: var(--dark-surface);
+    --color-raised: var(--dark-raised);
+    --color-sunk: var(--dark-sunk);
+    --color-ink: var(--dark-ink);
+    --color-ink-2: var(--dark-ink-2);
+    --color-ink-3: var(--dark-ink-3);
+    --color-ink-dim: var(--dark-ink-dim);
+    --color-line: var(--dark-line);
+    --color-line-2: var(--dark-line-2);
+    --color-line-strong: var(--dark-line-strong);
     --color-accent: var(--dark-accent);
-    --color-accent-secondary: var(--dark-accent-secondary);
-    --color-accent-foreground: var(--dark-accent-foreground);
-    --color-border: var(--dark-border);
-    --color-card: var(--dark-card);
+    --color-accent-ink: var(--dark-accent-ink);
+    --color-accent-soft: var(--dark-accent-soft);
+    --color-hi: var(--dark-hi);
+    --color-hi-bg: var(--dark-hi-bg);
+    --color-med: var(--dark-med);
+    --color-med-bg: var(--dark-med-bg);
+    --color-ok: var(--dark-ok);
+    --color-off: var(--dark-off);
+    --color-glow-a: var(--dark-glow-a);
+    --color-glow-b: var(--dark-glow-b);
+    --color-scrim: var(--dark-scrim);
+    --color-scene-1: var(--dark-scene-1);
+    --color-scene-2: var(--dark-scene-2);
+    --color-scene-3: var(--dark-scene-3);
+    --color-scene-4: var(--dark-scene-4);
+    --shadow-sm: var(--dark-shadow-sm);
+    --shadow-md: var(--dark-shadow-md);
 
     --color-cat-indigo: var(--dark-cat-indigo);
     --color-cat-slate: var(--dark-cat-slate);
@@ -242,19 +363,6 @@
     --color-cat-rose: var(--dark-cat-rose);
     --color-cat-cyan: var(--dark-cat-cyan);
     --color-cat-neutral: var(--dark-cat-neutral);
-
-    --color-nav: var(--dark-nav);
-    --color-nav-foreground: var(--dark-nav-foreground);
-    --color-nav-hover: var(--dark-nav-hover);
-    --color-nav-active: var(--dark-nav-active);
-    --color-ink: var(--dark-ink);
-    --shadow-elevated: var(--dark-shadow-elevated);
-    --color-ink-foreground: var(--dark-ink-foreground);
-    --color-attention: var(--dark-attention);
-    --color-attention-surface: var(--dark-attention-surface);
-    --color-attention-border: var(--dark-attention-border);
-
-    --color-now: var(--dark-now);
 
     --color-project-1: var(--dark-project-1);
     --color-project-2: var(--dark-project-2);
@@ -267,15 +375,36 @@
   }
 }
 :root[data-theme="dark"] {
-  --color-background: var(--dark-background);
-  --color-foreground: var(--dark-foreground);
-  --color-muted: var(--dark-muted);
-  --color-muted-foreground: var(--dark-muted-foreground);
+  --color-shell: var(--dark-shell);
+  --color-win-edge: var(--dark-win-edge);
+  --color-surface: var(--dark-surface);
+  --color-raised: var(--dark-raised);
+  --color-sunk: var(--dark-sunk);
+  --color-ink: var(--dark-ink);
+  --color-ink-2: var(--dark-ink-2);
+  --color-ink-3: var(--dark-ink-3);
+  --color-ink-dim: var(--dark-ink-dim);
+  --color-line: var(--dark-line);
+  --color-line-2: var(--dark-line-2);
+  --color-line-strong: var(--dark-line-strong);
   --color-accent: var(--dark-accent);
-  --color-accent-secondary: var(--dark-accent-secondary);
-  --color-accent-foreground: var(--dark-accent-foreground);
-  --color-border: var(--dark-border);
-  --color-card: var(--dark-card);
+  --color-accent-ink: var(--dark-accent-ink);
+  --color-accent-soft: var(--dark-accent-soft);
+  --color-hi: var(--dark-hi);
+  --color-hi-bg: var(--dark-hi-bg);
+  --color-med: var(--dark-med);
+  --color-med-bg: var(--dark-med-bg);
+  --color-ok: var(--dark-ok);
+  --color-off: var(--dark-off);
+  --color-glow-a: var(--dark-glow-a);
+  --color-glow-b: var(--dark-glow-b);
+  --color-scrim: var(--dark-scrim);
+  --color-scene-1: var(--dark-scene-1);
+  --color-scene-2: var(--dark-scene-2);
+  --color-scene-3: var(--dark-scene-3);
+  --color-scene-4: var(--dark-scene-4);
+  --shadow-sm: var(--dark-shadow-sm);
+  --shadow-md: var(--dark-shadow-md);
 
   --color-cat-indigo: var(--dark-cat-indigo);
   --color-cat-slate: var(--dark-cat-slate);
@@ -285,19 +414,6 @@
   --color-cat-rose: var(--dark-cat-rose);
   --color-cat-cyan: var(--dark-cat-cyan);
   --color-cat-neutral: var(--dark-cat-neutral);
-
-  --color-nav: var(--dark-nav);
-  --color-nav-foreground: var(--dark-nav-foreground);
-  --color-nav-hover: var(--dark-nav-hover);
-  --color-nav-active: var(--dark-nav-active);
-  --color-ink: var(--dark-ink);
-  --shadow-elevated: var(--dark-shadow-elevated);
-  --color-ink-foreground: var(--dark-ink-foreground);
-  --color-attention: var(--dark-attention);
-  --color-attention-surface: var(--dark-attention-surface);
-  --color-attention-border: var(--dark-attention-border);
-
-  --color-now: var(--dark-now);
 
   --color-project-1: var(--dark-project-1);
   --color-project-2: var(--dark-project-2);
@@ -309,41 +425,139 @@
   --color-project-foreground: var(--dark-project-foreground);
 }
 
-/* The nav rail (Sidebar.tsx) is a fixed dark surface (--color-nav is #313333
-   in BOTH themes by design), so project dots there always need the lightened
-   dark-mode project values for contrast — the saturated light-mode tokens
-   (--color-project-1 #0052ff is 2.21:1 against it, under the 3:1 floor for
-   a non-text indicator) are unreadable against it. Scope
-   an override to the rail rather than forking a second palette. */
-.nav-rail {
-  --color-project-1: var(--dark-project-1);
-  --color-project-2: var(--dark-project-2);
-  --color-project-3: var(--dark-project-3);
-  --color-project-4: var(--dark-project-4);
-  --color-project-5: var(--dark-project-5);
-  --color-project-6: var(--dark-project-6);
-  --color-project-7: var(--dark-project-7);
+/* Phase 5F utilities (soft.html .composer, .mom, .task + .task). */
+@utility composer-frame {
+  box-shadow: 0 0 0 1px var(--color-line-2), var(--shadow-sm);
+  transition: box-shadow 150ms ease-out;
+  &:focus-within {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 0 4px var(--color-accent-soft);
+  }
 }
 
+/* Today's composer sits flush against the edge of the scrolling pane (PageHead),
+   which clips anything drawn outside it. Inside that pane the hairline and the
+   4px focus ring are drawn inset so no edge is cut. */
+[data-testid="today-primary-pane"] .composer-frame {
+  box-shadow: inset 0 0 0 1px var(--color-line-2), var(--shadow-sm);
+  &:focus-within {
+    box-shadow: inset 0 0 0 1px var(--color-accent), inset 0 0 0 4px var(--color-accent-soft);
+  }
+}
+
+@utility mom-glow {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -60% -40% 35% -30%;
+    pointer-events: none;
+    background:
+      radial-gradient(45% 50% at 32% 55%, var(--color-glow-a) 0%, transparent 72%),
+      radial-gradient(45% 45% at 72% 40%, var(--color-glow-b) 0%, transparent 75%);
+    filter: blur(18px);
+    opacity: 0.85;
+    z-index: 0;
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent 18%, var(--color-surface) 62%);
+    z-index: 0;
+  }
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* The frosted shell (soft.html .win). Pair with a translucent --color-shell. */
+@utility shell-glass {
+  backdrop-filter: blur(28px) saturate(1.3);
+}
+
+/* Read the runtime shadow tokens so the dark values apply (Tailwind inlines theme values otherwise). */
+@utility shadow-sm {
+  --tw-shadow: var(--shadow-sm);
+  box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@utility shadow-md {
+  --tw-shadow: var(--shadow-md);
+  box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@layer components {
+  .task-list > li + li {
+    box-shadow: 0 -1px 0 var(--color-line);
+  }
+}
+
+html {
+  background: var(--color-scene-2);
+}
+
+/* Web scene (soft.html body): two radial washes over a linear one. */
 body {
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background:
+    radial-gradient(70% 55% at 15% 0%, var(--color-scene-1) 0%, transparent 70%),
+    radial-gradient(60% 50% at 90% 100%, var(--color-scene-4) 0%, transparent 70%),
+    linear-gradient(180deg, var(--color-scene-2) 0%, var(--color-scene-3) 100%);
+  background-attachment: fixed;
+  color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "kern" 1;
   transition: background-color 0.2s var(--ease-out-soft), color 0.2s var(--ease-out-soft);
   user-select: none;
 }
 
-/* The desktop window is transparent (backgroundColor in electron/main.js) so
-   the vibrancy material behind it can show through — an opaque body would
-   paint over that material everywhere, including behind the sidebar, and
-   the "sidebar" vibrancy effect would never be visible. Only the desktop
-   build's window is actually transparent, so only there does body give up
-   its paint; the web build has no material behind it and keeps the themed
-   background. THEME_INIT in app/layout.tsx stamps data-desktop before paint. */
-:root[data-desktop] body {
+/* The desktop window is transparent (backgroundColor in electron/main.js), so
+   the desktop body gives up its paint by default: the quick-capture window is
+   a bare, see-through composer bar. The main window paints the soft.html scene
+   again, so the frosted shell (bg-shell + shell-glass) shows the gradient
+   through its glass as in the mockup, instead of macOS's flat grey material.
+   THEME_INIT in app/layout.tsx stamps data-desktop before paint. */
+:root[data-desktop],
+:root[data-desktop] body:not(:has([data-part="window"])) {
   background: transparent;
+}
+
+/* Grain over the scene (soft.html body::before), wherever the scene is
+   painted. AppChrome's root is `relative`, so it paints above this layer. */
+:root:not([data-desktop]) body::before,
+:root[data-desktop] body:has([data-part="window"])::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+/* The one focus ring. No component adds its own outline-none. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The composer frame's :focus-within ring is its focus indicator, so its field
+   (input or textarea) draws no second outline inside it. */
+.composer-frame :is(input, textarea):focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 24%, transparent);
+  color: var(--color-ink);
 }
 
 /* Selection stays off for chrome (nav labels, buttons) but must work for
@@ -353,14 +567,6 @@ textarea,
 [contenteditable="true"],
 .select-text {
   user-select: text;
-}
-
-/* The signature gradient, as text. */
-.gradient-text {
-  background: linear-gradient(to right, var(--color-accent), var(--color-accent-secondary));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 /* macOS drag regions. `-webkit-app-region: drag` is read by Chromium into
@@ -373,7 +579,7 @@ textarea,
    So ANY element with `.no-drag` that comes LATER in the DOM than a
    `.drag-region` subtracts itself from that region if it overlaps it —
    it does not need to be that region's descendant, or related to it at
-   all. This is why SectionLabel and the tracking/calendar header buttons
+   all. This is why the tracking/calendar header buttons
    work despite sitting in independent page trees, unrelated to the
    `.drag-region` strip in AppChrome that mounts before them.
 
@@ -427,11 +633,10 @@ textarea,
    Electron drag rect is untouched by pointer-events, every page header
    whose content geometrically lands in the top 36px must still add
    `.no-drag` to that content — including plain, non-interactive text like
-   Today's SectionLabel at the `lg:py-4` compact breakpoint — or a
+   a page title at a compact breakpoint — or a
    click/double-click there drags/zooms the window instead of reaching the
    content. See app/tracking/page.tsx and app/calendar/page.tsx for the
-   pattern on interactive controls, and components/SectionLabel.tsx for
-   the non-interactive case. */
+   pattern on interactive controls, for the non-interactive case. */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -439,37 +644,26 @@ textarea,
   -webkit-app-region: no-drag;
 }
 
-/* Overlay scrollbars: keep the track invisible and only tint the thumb on
-   hover. Deliberately no scrollbar-gutter: stable here — applied to `*` it
-   reserves 8px on the root itself, which is a permanent gap in the window
-   the desktop build's vibrancy shows straight through, whether or not
-   anything is scrollable. */
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Thin overlay-style scrollbars: the thumb is invisible until the pointer is
+   over the scroller, then tints. One mechanism only: Chromium ignores the
+   ::-webkit-scrollbar rules once scrollbar-width / scrollbar-color is set.
+   Deliberately no scrollbar-gutter: stable here — applied to `*` it
+   reserves space on the root itself, which is a permanent gap in the window
+   the desktop build's vibrancy shows straight through. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
-*::-webkit-scrollbar-track {
-  background: transparent;
+@media (hover: hover) {
+  *:hover {
+    scrollbar-color: var(--color-line-2) transparent;
+  }
 }
-*::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 9999px;
-}
-*:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-foreground) 20%, transparent);
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-foreground) 35%, transparent);
-}
-
-/* Texture on the inverted card (bg-foreground/text-background) — felt more
-   than seen. Dot colour is --color-background, the inverted card's own text
-   colour, so it stays a light dot on the light-mode dark card and a dark dot
-   on the dark-mode light card instead of hardcoding white. */
-.dot-texture {
-  background-image: radial-gradient(circle, var(--color-background) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.04;
+/* A page's scroll panes (PageHead body and rail panes) scroll without a
+   visible bar, as the mockup's page does. A classic bar would take 11px of
+   the pane's width and pull the cards' right edge off the head's. */
+.pane-scroll {
+  scrollbar-width: none;
 }
 
 @keyframes fade-up {
@@ -492,58 +686,6 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-.timeline-range {
-  --range-progress: 0%;
-  appearance: none;
-  height: 1.5rem;
-  cursor: pointer;
-  background:
-    linear-gradient(var(--color-accent), var(--color-accent)) 0 50% / var(--range-progress) 0.375rem no-repeat,
-    linear-gradient(var(--color-muted), var(--color-muted)) 0 50% / 100% 0.375rem no-repeat;
-  border-radius: 9999px;
-  transition: background-size 180ms var(--ease-out-soft);
-}
-
-.timeline-range--dragging {
-  transition: none;
-}
-
-.timeline-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--color-card);
-  border-radius: 9999px;
-  background: var(--color-accent);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  transition: transform 140ms var(--ease-out-soft), box-shadow 140ms var(--ease-out-soft);
-}
-
-.timeline-range::-moz-range-thumb {
-  width: 0.75rem;
-  height: 0.75rem;
-  border: 2px solid var(--color-card);
-  border-radius: 9999px;
-  background: var(--color-accent);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  transition: transform 140ms var(--ease-out-soft), box-shadow 140ms var(--ease-out-soft);
-}
-
-.timeline-range:hover::-webkit-slider-thumb,
-.timeline-range:focus-visible::-webkit-slider-thumb,
-.timeline-range:active::-webkit-slider-thumb,
-.timeline-range:hover::-moz-range-thumb,
-.timeline-range:focus-visible::-moz-range-thumb,
-.timeline-range:active::-moz-range-thumb {
-  transform: scale(1.14);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 45%, transparent);
-}
-
-.timeline-range:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
-  outline-offset: 2px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -551,12 +693,117 @@ button {
     animation: none !important;
     transition: none !important;
   }
-
-  /* The `*` selector above doesn't reach UA-generated pseudo-elements like
-     the range thumb, so its hover/active scale transition needs its own
-     override. */
-  .timeline-range::-webkit-slider-thumb,
-  .timeline-range::-moz-range-thumb {
-    transition: none !important;
-  }
 }
+
+/* Calendar (soft.html .dcol, .ev, .nowline, .legend). Token-only, so dark
+   mode follows the tokens. Components set --c inline to a project colour. */
+.cal-col {
+  position: relative;
+  box-shadow: -1px 0 0 var(--color-line);
+  background: repeating-linear-gradient(180deg, transparent 0 55px, var(--color-line) 55px 56px);
+}
+.cal-col.is-weekend {
+  background-color: color-mix(in srgb, var(--color-sunk) 50%, transparent);
+}
+.cal-col.is-drop {
+  background-color: var(--color-accent-soft);
+}
+.cal-ev {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: var(--radius-tile);
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--c) 14%, var(--color-surface));
+  box-shadow: inset 2px 0 0 var(--c);
+  color: var(--color-ink);
+  text-align: left;
+}
+.cal-ev-title {
+  display: block;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-ev-time {
+  color: var(--color-ink-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-ev.is-short {
+  padding: 3px 8px;
+}
+.cal-ev.is-tracked {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--c) 10%, var(--color-surface)) 0 6px,
+    color-mix(in srgb, var(--c) 18%, var(--color-surface)) 6px 12px
+  );
+}
+.cal-ev.is-done {
+  opacity: 0.55;
+}
+.cal-ev.is-done .cal-ev-title {
+  text-decoration: line-through;
+}
+.cal-ev.is-flow {
+  position: static;
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+.cal-ev.is-external {
+  background: var(--color-surface);
+  box-shadow: none;
+  border: 1px dashed var(--color-line-2);
+  color: var(--color-ink-3);
+}
+.cal-nowline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid var(--color-accent);
+  z-index: 3;
+  pointer-events: none;
+}
+.cal-nowline::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.legend-swatch.is-solid {
+  background: color-mix(in srgb, var(--color-ink-3) 35%, transparent);
+}
+.legend-swatch.is-stripe {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-ink-3) 45%, transparent) 0 2px,
+    color-mix(in srgb, var(--color-ink-3) 15%, transparent) 2px 4px
+  );
+}
+
+/* Phase 8: project board sideways fade. Board.tsx sets data-fade from its scroll position. */
+.board-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.board-scroll[data-fade="end"] { mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+.board-scroll[data-fade="start"] { mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); }
+.board-scroll[data-fade="both"] { mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); }

@@ -2,10 +2,19 @@ import { randomUUID } from "node:crypto";
 import { withTransaction } from "../db";
 import type { Tx } from "../db";
 import { DEFAULT_STAGES, type ProjectStage, type StageInput, type StageKind } from "../types";
+import { Invalid } from "../validate";
 import { db, rowToStage, type Q, type StageRow } from "./rows";
 
 /** Thrown when a request would break a board invariant; APIs map it to 409. */
 export class StageConflict extends Error {}
+
+/**
+ * Open tasks sitting in a column, for the board header's "3 / 5" count.
+ * The limit is soft: this never blocks a move.
+ */
+export function wipCount(tasks: { stageId?: string; status: string }[], stageId: string): number {
+  return tasks.filter((t) => t.stageId === stageId && t.status === "open").length;
+}
 
 export async function listStages(projectId?: string): Promise<ProjectStage[]> {
   const rows = projectId
@@ -82,8 +91,14 @@ export async function addStage(projectId: string, input: StageInput): Promise<Pr
 
 export async function updateStage(
   id: string,
-  patch: Partial<StageInput>,
+  patch: Partial<StageInput> & { wipLimit?: number | null },
 ): Promise<ProjectStage | null> {
+  // Invalid (from ../validate, no import cycle) is already mapped to 400 by lib/api.
+  if (patch.wipLimit !== undefined && patch.wipLimit !== null) {
+    if (!Number.isInteger(patch.wipLimit) || patch.wipLimit < 1) {
+      throw new Invalid("wipLimit must be a whole number of at least 1, or null");
+    }
+  }
   return withTransaction(async (tx) => {
     const stage = await getStage(id, tx);
     if (!stage) return null;
@@ -102,6 +117,10 @@ export async function updateStage(
     if (patch.kind !== undefined) {
       sets.push(`kind = $${i++}`);
       vals.push(patch.kind);
+    }
+    if (patch.wipLimit !== undefined) {
+      sets.push(`wip_limit = $${i++}`);
+      vals.push(patch.wipLimit);
     }
     if (sets.length === 0) return stage;
 
@@ -193,8 +212,9 @@ export async function moveTasksToStage(
 
   await tx.query(
     `update tasks
-        set stage_id = $2, board_order = board_order + 1000000, ${statusFix}
-      where stage_id = $1`,
+        set stage_id = $2, board_order = board_order + 1000000,
+            stage_entered_at = now(), ${statusFix}
+      where stage_id = $1 and stage_id <> $2`,
     [fromStageId, destination.id],
   );
   await renumberStage(tx, destination.id);

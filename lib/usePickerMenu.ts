@@ -70,8 +70,25 @@ export function usePickerMenu({
   const [activeIndex, setActiveIndex] = useState(-1);
   const menuId = useId();
 
+  // Reset on open/close during render (React's "adjust state when a prop
+  // changes" pattern) instead of in an effect: a closed menu has no position,
+  // and a freshly opened one starts with nothing highlighted. While open, a
+  // shrinking list clamps the stored highlight so it never points past the
+  // end (which would silently swallow Enter).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    setPosition(null);
+    setActiveIndex(-1);
+  } else if (open) {
+    const clamped = optionCount === 0 ? -1 : Math.min(activeIndex, optionCount - 1);
+    if (clamped !== activeIndex) setActiveIndex(clamped);
+  }
+
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+  });
   // Set by the outside-pointerdown handler below whenever the pointerdown
   // landed inside the trigger/menu, and consumed (reset to false) by the
   // very next focusout — see the focusout handler's comment for why this is
@@ -124,21 +141,10 @@ export function usePickerMenu({
     }
   }, [minWidth]);
 
-  useLayoutEffect(() => {
-    if (!open) {
-      setPosition(null);
-      return;
-    }
-    setActiveIndex(-1);
-    reposition();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   // Re-measure whenever the option count changes the menu's natural
   // height/width (e.g. TaskPicker's search filter narrowing the list) —
-  // deliberately separate from the effect above, which also resets
-  // activeIndex to -1: that reset must only happen on open/close, not on
-  // every keystroke that changes the filtered count.
+  // (activeIndex is reset only on open/close, in render above, not on every
+  // keystroke that changes the filtered count.)
   useLayoutEffect(() => {
     if (!open) return;
     reposition();
@@ -230,18 +236,6 @@ export function usePickerMenu({
       }
     };
   }, [open]);
-
-  // Clamp the highlighted index whenever the option count shrinks (e.g. a
-  // search query narrows TaskPicker's list) so a stale highlight never
-  // points past the end, silently swallowing Enter.
-  useEffect(() => {
-    if (!open) return;
-    setActiveIndex((i) => {
-      if (optionCount === 0) return -1;
-      if (i >= optionCount) return optionCount - 1;
-      return i;
-    });
-  }, [open, optionCount]);
 
   useEffect(() => {
     if (!open) return;

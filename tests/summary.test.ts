@@ -160,3 +160,23 @@ test("day shifting crosses month and year boundaries", () => {
   assert.equal(shiftDays("2026-02-28", 1), "2026-03-01");
   assert.equal(shiftDays("2024-02-28", 1), "2024-02-29", "leap year");
 });
+
+test("undated open task is excluded from overdue, today and project date figures", () => {
+  const dated = task({ id: "d", scheduled: "2026-03-09", minutes: 20 });
+  const todayTask = task({ id: "t", scheduled: TODAY, minutes: 40 });
+  const inbox = task({ id: "u", scheduled: null, minutes: 50 });
+  const inboxComplex = task({ id: "uc", scheduled: null, isComplex: true, finishDate: "2026-03-01" });
+
+  const base = todaySummary([dated, todayTask], stages, [], TODAY);
+  const withInbox = todaySummary([dated, todayTask, inbox, inboxComplex], stages, [], TODAY);
+  assert.deepEqual(withInbox.overdue.map((t) => t.id), ["d"]);
+  assert.deepEqual(withInbox.dueToday.map((t) => t.id), ["t"]);
+  assert.equal(withInbox.plannedMinutes, base.plannedMinutes);
+  assert.equal(withInbox.plannedMinutes, 40);
+
+  const ps = projectSummary(PROJECT, [dated, todayTask, inbox, inboxComplex], stages, [], TODAY);
+  assert.equal(ps.overdue, 1);
+  // Still an open task where a plain open count is reported.
+  assert.equal(ps.open, 4);
+  assert.equal(ps.total, 4);
+});

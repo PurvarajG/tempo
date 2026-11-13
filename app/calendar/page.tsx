@@ -11,7 +11,8 @@ import {
   dayRange,
   monthGrid,
   shift,
-  viewLabel,
+  isoWeekNumber,
+  viewTitle,
   weekGrid,
   type CalendarView,
 } from "@/lib/calendar";
@@ -19,7 +20,12 @@ import { fmtDate } from "@/lib/format";
 import { groupExternalEventsByDate } from "@/lib/external-events-view";
 import { useExternalEvents } from "@/lib/useExternalEvents";
 import type { Task } from "@/lib/types";
-import PageShell from "@/components/ui/PageShell";
+import { trackedBlocks } from "@/lib/calendar-blocks";
+import Button from "@/components/ui/Button";
+import IconButton from "@/components/ui/IconButton";
+import Segmented from "@/components/ui/Segmented";
+import CalendarLegend from "@/components/calendar/CalendarLegend";
+import PageHead from "@/components/ui/PageHead";
 import Panel from "@/components/ui/Panel";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import WeekGrid from "@/components/calendar/WeekGrid";
@@ -27,6 +33,8 @@ import DayGrid from "@/components/calendar/DayGrid";
 import DayPanel, { DayPanelBody } from "@/components/calendar/DayPanel";
 
 const VIEW_LABELS: Record<CalendarView, string> = { day: "Day", week: "Week", month: "Month" };
+
+const KINDS_SENTENCE = "Planned blocks are solid, tracked time is striped.";
 
 export default function CalendarPage() {
   return (
@@ -37,7 +45,7 @@ export default function CalendarPage() {
 }
 
 function Calendar() {
-  const { tasks } = useTasks();
+  const { tasks, timeEntries, running } = useTasks();
   const router = useRouter();
   const params = useSearchParams();
   const now = useNow();
@@ -86,7 +94,7 @@ function Calendar() {
       map.set(iso, list);
     };
     for (const task of tasks) {
-      if (task.status === "trashed") continue;
+      if (task.status === "trashed" || task.scheduled === null) continue;
       if (task.isComplex && task.finishDate) {
         const span = daysBetween(task.scheduled, task.finishDate);
         for (let offset = 0; offset <= span; offset++) add(shiftDays(task.scheduled, offset), task);
@@ -109,6 +117,25 @@ function Calendar() {
     return monthGrid(y, m - 1);
   }, [view, anchorISO]);
 
+  // Distinct project ids shown in the visible range, first seen first. Tracked
+  // time counts in week and day view, where it is drawn.
+  const projectIds = useMemo(() => {
+    const ids: string[] = [];
+    const add = (id: string | null | undefined) => {
+      if (id && !ids.includes(id)) ids.push(id);
+    };
+    const byId = new Map(tasks.map((t) => [t.id, t]));
+    for (const d of days) {
+      for (const t of tasksByDate.get(d.iso) ?? []) add(t.projectId);
+      if (view !== "month" && now) {
+        for (const b of trackedBlocks(d.iso, timeEntries, running, tasks, now)) {
+          add(b.projectId ?? (b.taskId ? byId.get(b.taskId)?.projectId : undefined));
+        }
+      }
+    }
+    return ids;
+  }, [days, tasksByDate, view, tasks, timeEntries, running, now]);
+
   // The active view's own visible range, rather than a fixed 42-day window.
   const { events, ok } = useExternalEvents(days[0]?.iso ?? "", days[days.length - 1]?.iso ?? "");
   const externalByDate = useMemo(
@@ -118,23 +145,40 @@ function Calendar() {
 
   if (!anchorISO) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-12 sm:px-10 sm:py-16">
-        <div className="h-10 w-64 rounded-lg bg-muted" />
+      <div className="mx-auto max-w-5xl px-8 py-8">
+        <div className="h-10 w-64 rounded-tile bg-sunk" />
       </div>
     );
   }
 
+  const heading = viewTitle(view, anchorISO);
+  const subtitle =
+    view === "week"
+      ? `Week ${isoWeekNumber(days[0].iso)}. ${KINDS_SENTENCE}`
+      : view === "day"
+        ? `${fmtDate(anchorISO, todayISO)}. ${KINDS_SENTENCE}`
+        : "Click a day to see it or add to it.";
+  const tip =
+    view === "week"
+      ? "Drag a block to another day to move it."
+      : view === "month"
+        ? "Drag a task to another day to move it."
+        : undefined;
+
   return (
-    <PageShell
-      label="Calendar"
-      maxWidth="max-w-none"
-      title={viewLabel(view, anchorISO)}
+    // `contents` keeps PageHead's frame layout untouched. The two descendant rules
+    // belong to the head row: the H1 never breaks, and when the sentence plus the
+    // nav buttons and view control no longer fit, the controls drop under the title
+    // instead of squeezing it.
+    <div
+      data-part="calendar-frame"
+      className="contents [&_[data-part=head]]:flex-wrap [&_[data-part=head]_h1]:whitespace-nowrap"
+    >
+    <PageHead
+      title={heading.title}
+      dim={heading.dim}
+      subtitle={subtitle}
       rail={
-        // The prototype's day screen is an agenda column plus a side rail —
-        // reuse DayPanelBody's exact add/list/move-date implementation
-        // inline here instead of only behind the click-to-open DayPanel
-        // modal, since in day view you're always already looking at the one
-        // day it would show.
         view === "day" ? (
           <Panel title={fmtDate(anchorISO)} collapsible={false}>
             <DayPanelBody
@@ -147,49 +191,45 @@ function Calendar() {
       }
       actions={
         <>
-          <div role="group" aria-label="Calendar view" className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
-            {CALENDAR_VIEWS.map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                aria-pressed={view === v}
-                className={`rounded-md px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors ${
-                  view === v
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {VIEW_LABELS[v]}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCursor(shift(view, anchorISO, -1))}
-              aria-label={`Previous ${view}`}
-              className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:size-9"
-            >
-              ‹
-            </button>
-            <button
-              onClick={() => setCursor(todayISO)}
-              className="rounded-lg px-3 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setCursor(shift(view, anchorISO, 1))}
-              aria-label={`Next ${view}`}
-              className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:size-9"
-            >
-              ›
-            </button>
-          </div>
+          <IconButton
+            icon="chev"
+            shape="round"
+            className="-scale-x-100"
+            label={`Previous ${view}`}
+            onClick={() => setCursor(shift(view, anchorISO, -1))}
+          />
+          <Button variant="chip" onClick={() => setCursor(todayISO)}>
+            Today
+          </Button>
+          <IconButton
+            icon="chev"
+            shape="round"
+            label={`Next ${view}`}
+            onClick={() => setCursor(shift(view, anchorISO, 1))}
+          />
+          <Segmented
+            ariaLabel="Calendar view"
+            value={view}
+            onChange={setView}
+            options={CALENDAR_VIEWS.map((v) => ({ value: v, label: VIEW_LABELS[v] }))}
+          />
         </>
       }
     >
-      <div>
+      {/* PageHead's body is an auto-row grid, so a bare shell:h-full never resolves and the
+          card grows to its content, never scrolling its own body. h-0 plus min-h-full takes the
+          stretched row's height instead, for every view: the grid card (flex-1, min-h-0) closes on
+          all four sides, the legend sits under it inside the pane, and overflow scrolls inside the
+          card body, never the page. Week and Day open at the waking hour. In Day view the rail stacks
+          below 1200px, so the row is auto and h-0 would collapse the card; a fixed scale height
+          keeps it readable and the rail follows below. */}
+      <div
+        className={
+          view === "day"
+            ? "flex min-h-0 flex-col gap-6 h-120 rail:h-0 rail:min-h-full"
+            : "flex min-h-0 flex-col gap-6 shell:h-0 shell:min-h-full"
+        }
+      >
         {view === "month" && (
           <MonthGrid
             days={days}
@@ -219,6 +259,7 @@ function Calendar() {
             onSelectDay={setSelected}
           />
         )}
+        <CalendarLegend projectIds={projectIds} tip={tip} showKinds={view !== "month"} />
       </div>
 
       <p aria-live="polite" className="sr-only">
@@ -243,6 +284,7 @@ function Calendar() {
           onClose={() => setSelected(null)}
         />
       )}
-    </PageShell>
+    </PageHead>
+    </div>
   );
 }

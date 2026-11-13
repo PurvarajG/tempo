@@ -8,7 +8,7 @@ import type { Task } from "./types";
  * updating it.
  */
 
-const PRODID = "-//Tempo//Task Feed//EN";
+const PRODID = "-//Doem//Task Feed//EN";
 
 /** RFC 5545 §3.3.11: backslash, semicolon, comma and newline are reserved in TEXT. */
 export function escapeIcsText(value: string): string {
@@ -79,10 +79,10 @@ function utcStamp(date: Date): string {
   return `${date.toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`;
 }
 
-function eventLines(task: Task, dtstamp: string): string[] {
+function eventLines(task: Task & { scheduled: string }, dtstamp: string): string[] {
   const lines = [
     "BEGIN:VEVENT",
-    // Deliberately still "@dayplan" after the Tempo rename: the UID has to be
+    // Deliberately still "@dayplan" after the Tempo and Doem renames: the UID has to be
     // stable across refetches, and changing it would make Apple Calendar
     // duplicate every event it has already imported.
     `UID:${task.id}@dayplan`,
@@ -121,8 +121,11 @@ export function buildIcsFeed(tasks: Task[], now = new Date()): string {
     `PRODID:${PRODID}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    "X-WR-CALNAME:Tempo Tasks",
-    ...tasks.filter((task) => task.status === "open").flatMap((task) => eventLines(task, dtstamp)),
+    "X-WR-CALNAME:Doem Tasks",
+    // Undated (inbox) tasks have no day to put on a calendar, so they never get a VEVENT.
+    ...tasks
+      .filter((task): task is Task & { scheduled: string } => task.status === "open" && !!task.scheduled)
+      .flatMap((task) => eventLines(task, dtstamp)),
     "END:VCALENDAR",
   ];
 

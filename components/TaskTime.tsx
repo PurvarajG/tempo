@@ -2,14 +2,16 @@
 
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { useTasks } from "@/lib/store-context";
-import { fmt, fmtDate } from "@/lib/format";
+import { fmt, fmtClock, fmtDate } from "@/lib/format";
 import { toISODate } from "@/lib/parse";
 import type { Task } from "@/lib/types";
 import CategoryDot from "./tracking/CategoryDot";
-import { inputClass, labelClass } from "./ui/Field";
+import Button from "./ui/Button";
+import Caption from "./ui/Caption";
+import Input from "./ui/Input";
 
 function clockLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return fmtClock(new Date(iso));
 }
 
 function clock(startedAt: string, now: number): string {
@@ -64,115 +66,132 @@ export default function TaskTime({ task }: { task: Task }) {
   const [adding, setAdding] = useState(false);
   const [minutes, setMinutes] = useState("30");
   const [date, setDate] = useState(toISODate(new Date()));
+  const [open, setOpen] = useState(true);
+
+  const collapsible = entries.length > 3;
+  const showList = !collapsible || open;
 
   return (
-    <section className="space-y-3">
-      <h3 className={labelClass}>Time</h3>
+    <section className="space-y-3" aria-label="Start and tracked time">
+      <Caption as="h3">Tracked</Caption>
 
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-        <button
+      <div className="flex items-center gap-3 rounded-row bg-sunk px-4 py-3">
+        <Button
+          variant="primary"
+          icon={isRunning ? undefined : "play"}
+          aria-label={isRunning ? "Stop timer" : "Start timer"}
           onClick={() => (isRunning ? stopTimer() : startTimer(task.id))}
-          className={`min-h-11 rounded-lg px-3 py-2 text-sm font-medium transition-all sm:min-h-9 ${
-            isRunning
-              ? "bg-muted text-foreground hover:bg-border"
-              : "bg-gradient-to-r from-accent to-accent-secondary text-accent-foreground hover:brightness-110"
-          }`}
         >
-          {isRunning ? "Stop timer" : "Start timer"}
-        </button>
+          {isRunning ? "Stop" : "Start"}
+        </Button>
 
         {isRunning && (
-          <span className="font-mono text-sm tabular-nums" aria-live="polite">
+          <span className="font-mono text-secondary tabular-nums text-ink" aria-live="polite">
             {elapsed}
           </span>
         )}
 
-        <span className="ml-auto text-right font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="ml-auto text-right font-mono text-meta tabular-nums text-ink-3">
           {fmt(recorded)} of {fmt(task.minutes)}
           <span className="sr-only"> recorded against the estimate</span>
         </span>
       </div>
 
       {entries.length > 0 && (
-        <ul className="space-y-1.5">
-          {entries.map((entry) => {
-            const category = categories.find((c) => c.id === entry.categoryId);
-            return (
-              <li key={entry.id} className="flex items-center gap-2 text-sm">
-                {category && (
-                  <span
-                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
-                    title={category.name}
-                  >
-                    <CategoryDot color={category.color} />
-                    {category.name}
-                  </span>
-                )}
-                <span className="w-40 shrink-0 truncate font-mono text-[11px] text-muted-foreground">
-                  {fmtDate(entry.startedAt.slice(0, 10))} {clockLabel(entry.startedAt)}
-                  {entry.endedAt ? ` – ${clockLabel(entry.endedAt)}` : ""}
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  aria-label={`Minutes recorded on ${fmtDate(entry.startedAt.slice(0, 10))}`}
-                  defaultValue={entry.minutes}
-                  onBlur={(e) => {
-                    const next = Number(e.target.value);
-                    if (next > 0 && next !== entry.minutes) patchTimeEntry(entry.id, { minutes: next });
-                  }}
-                  className="h-8 w-16 shrink-0 rounded-lg border border-border bg-card px-2 text-sm outline-none focus:border-accent/40"
-                />
-                <input
-                  defaultValue={entry.note ?? ""}
-                  placeholder="Note"
-                  aria-label={`Note for the session on ${fmtDate(entry.startedAt.slice(0, 10))}`}
-                  onBlur={(e) => {
-                    if (e.target.value !== (entry.note ?? "")) patchTimeEntry(entry.id, { note: e.target.value });
-                  }}
-                  className="min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm text-muted-foreground outline-none transition-colors hover:border-border focus:border-accent/40 focus:bg-card focus:text-foreground"
-                />
-                <button
-                  onClick={() => deleteTimeEntry(entry.id)}
-                  aria-label="Delete time entry"
-                  className="shrink-0 px-1 text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="space-y-1.5">
+          {collapsible && (
+            <Button
+              size="sm"
+              iconAfter={open ? "chevup" : "chev"}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {entries.length} sessions
+            </Button>
+          )}
+          {showList && (
+            <ul className="space-y-1.5">
+              {entries.map((entry) => {
+                const category = categories.find((c) => c.id === entry.categoryId);
+                const day = fmtDate(entry.startedAt.slice(0, 10));
+                return (
+                  <li key={entry.id} className="flex flex-wrap items-center gap-2 text-secondary">
+                    {category && (
+                      <span
+                        className="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-meta text-ink-3 inset-ring-1 inset-ring-line-2"
+                        title={category.name}
+                      >
+                        <CategoryDot color={category.color} />
+                        {category.name}
+                      </span>
+                    )}
+                    <span className="shrink-0 font-mono text-meta text-ink-3">
+                      {day} {clockLabel(entry.startedAt)}
+                      {entry.endedAt ? ` to ${clockLabel(entry.endedAt)}` : ""}
+                    </span>
+                    <Input
+                      type="number"
+                      min={1}
+                      aria-label={`Minutes recorded on ${day}`}
+                      defaultValue={entry.minutes}
+                      onBlur={(e) => {
+                        const next = Number(e.target.value);
+                        if (next > 0 && next !== entry.minutes) patchTimeEntry(entry.id, { minutes: next });
+                      }}
+                      wrapperClassName="h-8 w-20 shrink-0 px-2"
+                    />
+                    <Input
+                      defaultValue={entry.note ?? ""}
+                      placeholder="Note"
+                      aria-label={`Note for the session on ${day}`}
+                      onBlur={(e) => {
+                        if (e.target.value !== (entry.note ?? "")) patchTimeEntry(entry.id, { note: e.target.value });
+                      }}
+                      wrapperClassName="h-8 min-w-0 flex-1 px-2"
+                    />
+                    <Button
+                      size="sm"
+                      tone="danger"
+                      onClick={() => deleteTimeEntry(entry.id)}
+                      aria-label="Delete time entry"
+                    >
+                      Delete
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
 
       {adding ? (
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
-            <label htmlFor="manual-date" className={labelClass}>
+            <Caption as="label" htmlFor="manual-date">
               Date
-            </label>
-            <input
+            </Caption>
+            <Input
               id="manual-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={inputClass}
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="manual-minutes" className={labelClass}>
+            <Caption as="label" htmlFor="manual-minutes">
               Minutes
-            </label>
-            <input
+            </Caption>
+            <Input
               id="manual-minutes"
               type="number"
               min={1}
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
-              className={`${inputClass} w-24`}
+              wrapperClassName="w-24"
             />
           </div>
-          <button
+          <Button
             onClick={async () => {
               const value = Number(minutes);
               if (!(value > 0)) return;
@@ -183,24 +202,15 @@ export default function TaskTime({ task }: { task: Task }) {
               });
               setAdding(false);
             }}
-            className="min-h-11 rounded-lg bg-muted px-3 py-2 text-sm font-medium hover:bg-border sm:min-h-9"
           >
             Record
-          </button>
-          <button
-            onClick={() => setAdding(false)}
-            className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </button>
+          </Button>
+          <Button onClick={() => setAdding(false)}>Cancel</Button>
         </div>
       ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="min-h-11 rounded-lg px-1 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground sm:min-h-0"
-        >
-          + Record time manually
-        </button>
+        <Button size="sm" onClick={() => setAdding(true)}>
+          Record time
+        </Button>
       )}
     </section>
   );
