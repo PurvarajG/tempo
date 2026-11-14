@@ -73,7 +73,13 @@ describe("useRangeSegments", () => {
     mount(null, "2026-11-13");
     await new Promise((r) => setTimeout(r, 20));
     expect(latest.current.segments).toEqual([]);
-    expect(urls).toHaveLength(0);
+    // The provider's own startup read of the running segment asks for an
+    // empty now..now range; only a real range would be the hook's.
+    const rangeUrls = urls.filter((u) => {
+      const q = new URL(u, "http://x").searchParams;
+      return q.get("from") !== q.get("to");
+    });
+    expect(rangeUrls).toHaveLength(0);
   });
 
   it("appends the running segment once", async () => {

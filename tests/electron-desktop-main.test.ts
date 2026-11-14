@@ -49,11 +49,14 @@ test("reminder notification carries the three actions", () => {
   assert.match(main, /text: "Tomorrow"/);
 });
 
-test("tray right-click pops up a menu without replacing the click toggle", () => {
-  assert.match(main, /tray\.popUpContextMenu\(/);
-  assert.doesNotMatch(main, /setContextMenu/);
-  assert.match(main, /label: "Quick add"/);
+test("either tray click pops up a freshly built menu", () => {
+  assert.match(main, /tray\.popUpContextMenu\(buildTrayMenu\(/);
+  assert.doesNotMatch(main, /tray\.setContextMenu\(/);
+  assert.match(main, /tray\.on\("click", \(\) => openTrayMenu\(\)\)/);
+  assert.match(main, /tray\.on\("right-click", \(\) => openTrayMenu\(\)\)/);
+  assert.match(main, /label: "Quick Add Task…"/);
   assert.match(main, /label: "Open Doem"/);
+  assert.match(main, /label: "Quit Doem"/);
 });
 
 test("View menu has Inbox on CmdOrCtrl+0, and nothing else claims it", () => {

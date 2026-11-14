@@ -22,6 +22,33 @@ const ROUTE_BY_DIGIT: Record<string, string> = {
 
 type Workspace = ReturnType<typeof useTasks>;
 
+/**
+ * Main-process-only command: the menu bar started, stopped or switched
+ * tracking through the API. Kept here rather than in DoemCommand because
+ * nothing else sends it.
+ */
+type TrayCommand = { type: "tracking-changed" };
+
+/** Re-reads what is being timed after something outside this window changed it. */
+async function resyncTracking(ws: Workspace) {
+  try {
+    const now = new Date().toISOString();
+    const [time, segs] = await Promise.all([
+      fetch("/api/time-entries").then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/segments?from=${encodeURIComponent(now)}&to=${encodeURIComponent(now)}`).then((r) =>
+        r.ok ? r.json() : null,
+      ),
+    ]);
+    if (time && Array.isArray(time.entries)) {
+      ws.setTimeEntries(time.entries);
+      ws.setRunning(time.running ?? null);
+    }
+    if (segs) ws.setRunningSegment(segs.running ?? null);
+  } catch {
+    // The next start, stop or reload catches up.
+  }
+}
+
 async function refreshTasks(setTasks: Workspace["setTasks"]) {
   try {
     const res = await fetch("/api/tasks");
@@ -127,8 +154,11 @@ export default function DesktopBridge() {
   }, []);
 
   useEffect(() => {
-    function run(command: DoemCommand) {
+    function run(command: DoemCommand | TrayCommand) {
       switch (command.type) {
+        case "tracking-changed":
+          void resyncTracking(stateRef.current);
+          break;
         case "navigate":
           router.push(command.path);
           break;
@@ -213,16 +243,20 @@ export default function DesktopBridge() {
     window.doem?.setDesktopSettings?.({ captureShortcut, nudgeMinutes, claudeAwareness });
   }, [captureShortcut, nudgeMinutes, claudeAwareness]);
 
-  // Mirrors the running timer to the Tray title. Main ticks the displayed
-  // elapsed time itself, so this only needs to fire on start/stop/switch.
+  // Tells the Tray something started, stopped or switched. Main re-reads the
+  // running segment itself and ticks the elapsed time, so this only needs to
+  // fire on change — for a task timer or for activity tracking (no task).
+  const { runningSegment } = workspace;
   useEffect(() => {
-    if (!running) {
+    if (!running && !runningSegment) {
       window.doem?.setTimerStatus(null);
       return;
     }
-    const task = tasks.find((t) => t.id === running.taskId);
-    window.doem?.setTimerStatus({ label: task?.title ?? "Timing", startedAt: running.startedAt });
-  }, [running, tasks]);
+    const taskId = running?.taskId ?? runningSegment?.taskId;
+    const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
+    const startedAt = running?.startedAt ?? runningSegment!.startedAt;
+    window.doem?.setTimerStatus({ label: task?.title ?? "Timing", startedAt });
+  }, [running, runningSegment, tasks]);
 
   // Task ▸ Start/Stop Timer has nothing to act on unless a timer is running
   // or a task panel is open — keep the native menu item's enabled state in

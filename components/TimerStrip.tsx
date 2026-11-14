@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { segmentLabel } from "@/components/tracking/segment-label";
 import { useTasks } from "@/lib/store-context";
 import { FOCUS_EXTEND_MINUTES, focusOverLine, focusPhase, focusRemainingMs } from "@/lib/focus-session";
 import { fmtCountdown } from "@/lib/format";
@@ -10,25 +12,47 @@ import Menu from "./ui/Menu";
 import { useElapsed } from "./TaskTime";
 
 /**
- * The running timer lives in the sidebar as a card. When the sidebar is
+ * The running timer lives in the sidebar as a card. It shows a task timer, or,
+ * when none runs, a segment started from Tracking's Now module (an activity or
+ * category), so whatever is being timed is always visible. When the sidebar is
  * collapsed, the compact variant sits in the top bar. Nothing floats over
  * page content, and the one thing you always need, stopping it, stays in
  * reach from wherever you ended up.
  */
 export default function TimerStrip({ variant = "card" }: { variant?: "card" | "compact" }) {
-  const { running, tasks, stopTimer, completeTask, openTask, focus, extendFocus, keepGoing } = useTasks();
-  const elapsed = useElapsed(running?.startedAt);
+  const {
+    running,
+    runningSegment,
+    tasks,
+    categories,
+    activities,
+    stopTimer,
+    stopSegment,
+    completeTask,
+    openTask,
+    focus: taskFocus,
+    extendFocus,
+    keepGoing,
+  } = useTasks();
+  const router = useRouter();
+  const elapsed = useElapsed(running?.startedAt ?? runningSegment?.startedAt);
   const now = useNow(1000);
 
-  if (!running) return null;
+  if (!running && !runningSegment) return null;
 
-  const task = tasks.find((t) => t.id === running.taskId);
-  const title = task?.title ?? "Untitled task";
-  const open = () => task && openTask(task.id);
+  // A focus session belongs to a task timer; a segment never has one.
+  const focus = running ? taskFocus : null;
+  const taskId = running?.taskId ?? runningSegment?.taskId ?? null;
+  const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
+  const title = running
+    ? (task?.title ?? "Untitled task")
+    : segmentLabel(runningSegment!, categories, activities, tasks);
+  const open = () => (task ? openTask(task.id) : router.push("/tracking"));
+  const stop = () => (running ? stopTimer() : stopSegment());
   // One set of Time's up actions, used by the card buttons and the compact menu.
   const finish = async () => {
     await stopTimer();
-    await completeTask(running.taskId);
+    if (running) await completeTask(running.taskId);
   };
 
   // The clock updates every second, so it is announced once rather than
@@ -69,7 +93,7 @@ export default function TimerStrip({ variant = "card" }: { variant?: "card" | "c
           />
         ) : null}
         <button
-          onClick={() => stopTimer()}
+          onClick={() => stop()}
           aria-label="Stop"
           className="grid size-6 shrink-0 place-items-center rounded-full bg-surface hover:bg-line-2"
         >
@@ -102,7 +126,7 @@ export default function TimerStrip({ variant = "card" }: { variant?: "card" | "c
         </span>
         {live}
         <button
-          onClick={() => stopTimer()}
+          onClick={() => stop()}
           aria-label="Stop"
           className="grid size-8 shrink-0 place-items-center rounded-tab bg-sunk hover:bg-line-2"
         >

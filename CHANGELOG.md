@@ -11,8 +11,13 @@ All notable changes to this project are documented here. The format follows [Kee
 - Calendar, Tracking, Next 7 days, project boards, Settings and the end-of-day wrap-up follow the same design language.
 
 ### Added
+- A menu bar menu, opened by either click: the running timer with Stop Tracking, today's tracked total, pinned activities, today's tasks and tasks tracked earlier today. Picking one starts timing it without opening the window. The menu bar shows activity timers as well as task timers, and times past an hour as `1:02:34`.
+- The quick capture shortcut can be recorded in Settings > Desktop, with a reset to the default.
 - A once-a-day check for a newer release. The packaged app sends a GET request to `api.github.com/repos/PurvarajG/doem/releases/latest`. No data about you is sent.
 - A README, an MIT licence and a release checklist.
+
+### Fixed
+- An activity timer started from the Tracking page now shows in the sidebar card and the top bar on every page, and after a restart.
 
 ### Migration
 - On first launch, Doem moves data from the Tempo (or earlier DayPlan) data folder into its own folder, including the database, desktop settings, theme choice and sidebar state. If the old app is still running, the move waits until it has quit. Keep your own backup before upgrading if the data matters.

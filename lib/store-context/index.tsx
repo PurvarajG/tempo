@@ -8,6 +8,7 @@ import type {
   Project,
   ProjectStage,
   QuickTodo,
+  Segment,
   Task,
   TaskInput,
   TimeEntry,
@@ -295,7 +296,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { loadNote } = note;
   const { setQuickTodos } = quickTodos;
   const { setTimeEntries, setRunning } = time;
-  const { setCategories, setActivities } = segments;
+  const { setCategories, setActivities, setRunningSegment } = segments;
   const { setSettings } = trackingConfig;
 
   useEffect(() => {
@@ -336,6 +337,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       )
       .catch(() => setError("Couldn't load your workspace"))
       .finally(() => setReady(true));
+
+    // A segment started from Tracking's Now module keeps running across pages
+    // and restarts, so the sidebar card needs it from the start, not only once
+    // the Tracking page has loaded. Separate from the workspace load so a
+    // failure here never blocks the app.
+    const now = new Date().toISOString();
+    fetch(`/api/segments?from=${encodeURIComponent(now)}&to=${encodeURIComponent(now)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { running?: Segment | null } | null) => {
+        if (d && typeof d === "object" && "running" in d) setRunningSegment(d.running ?? null);
+      })
+      .catch(() => {
+        // The Tracking page or the next start/stop catches up.
+      });
   }, [
     setTasks,
     setProjects,
@@ -347,6 +362,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setCategories,
     setActivities,
     setSettings,
+    setRunningSegment,
   ]);
 
   const dismissError = useCallback(() => setError(null), []);

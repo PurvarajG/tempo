@@ -6,8 +6,14 @@ import { useTasks } from "@/lib/store-context";
 import TimerStrip from "@/components/TimerStrip";
 import TimerConflict from "@/components/TimerConflict";
 import TaskTime from "@/components/TaskTime";
-import { emptyWorkspace, makeTask, renderWorkspace } from "./harness";
-import type { TimeEntry } from "@/lib/types";
+import { emptyWorkspace, makeCategory, makeTask, renderWorkspace } from "./harness";
+import type { Segment, TimeEntry } from "@/lib/types";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push, refresh: vi.fn() }),
+}));
 
 const taskA = makeTask({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", title: "Write the plan" });
 const taskB = makeTask({ id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", title: "Fix the nav" });
@@ -337,5 +343,56 @@ describe("task time totals", () => {
       const call = mock.calls.find((c) => c.url === "/api/time-entries");
       expect((call?.body as { minutes: number })?.minutes).toBe(45);
     });
+  });
+});
+
+describe("running segment in the timer strip", () => {
+  const segment: Segment = {
+    id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    startedAt: new Date(Date.now() - 65_000).toISOString(),
+    categoryId: makeCategory().id,
+    source: "timer",
+    createdAt: "2026-03-01T09:00:00.000Z",
+    updatedAt: "2026-03-01T09:00:00.000Z",
+  } as Segment;
+
+  test("shows a segment started from Tracking when no task timer runs, and stops it", async () => {
+    const { mock } = renderWorkspace(
+      <TimerStrip />,
+      emptyWorkspace({ tasks: [taskA], runningSegment: segment }),
+    );
+    expect(await screen.findByRole("button", { name: "Focus Work" })).toBeInTheDocument();
+    expect(screen.getByText("Tracking now")).toBeInTheDocument();
+    expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+    await waitFor(() =>
+      expect(mock.calls).toContainEqual({ url: "/api/segments/stop", method: "POST", body: undefined }),
+    );
+    expect(mock.calls.some((c) => c.url === "/api/time-entries/stop")).toBe(false);
+  });
+
+  test("opens Tracking from an activity segment", async () => {
+    renderWorkspace(<TimerStrip />, emptyWorkspace({ tasks: [taskA], runningSegment: segment }));
+    await userEvent.click(await screen.findByRole("button", { name: "Focus Work" }));
+    expect(push).toHaveBeenCalledWith("/tracking");
+  });
+
+  test("names a task-linked segment by its task", async () => {
+    renderWorkspace(
+      <TimerStrip />,
+      emptyWorkspace({ tasks: [taskA], runningSegment: { ...segment, taskId: taskA.id } }),
+    );
+    expect(await screen.findByRole("button", { name: "Write the plan" })).toBeInTheDocument();
+  });
+
+  test("prefers the task timer when both run", async () => {
+    const running = entry(taskB.id);
+    renderWorkspace(
+      <TimerStrip />,
+      emptyWorkspace({ tasks: [taskA, taskB], timeEntries: [running], running, runningSegment: segment }),
+    );
+    expect(await screen.findByRole("button", { name: "Fix the nav" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Focus Work" })).not.toBeInTheDocument();
   });
 });

@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld("doem", {
   setDesktopSettings(settings) {
     ipcRenderer.send("doem:set-desktop-settings", settings);
   },
+  pauseCaptureShortcut(paused) {
+    ipcRenderer.send("doem:pause-capture-shortcut", paused === true);
+  },
   getCaptureStatus() {
     return ipcRenderer.invoke("doem:get-capture-status");
   },

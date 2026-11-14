@@ -37,6 +37,8 @@ declare global {
       setReminders: (reminders: DoemReminder[]) => void;
       setDesktopSettings: (settings: DoemDesktopSettings) => void;
       getCaptureStatus: () => Promise<DoemCaptureStatus | null>;
+      /** Releases the global shortcut while Settings records a new one. */
+      pauseCaptureShortcut?: (paused: boolean) => void;
       onCaptureStatus: (callback: (status: DoemCaptureStatus) => void) => () => void;
       getClaudeSessions: () => Promise<ClaudeSession[]>;
       onClaudeSessions: (callback: (sessions: ClaudeSession[]) => void) => () => void;

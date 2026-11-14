@@ -70,6 +70,7 @@ let quitting = false;
 // garbage-collected and silently disappears from the menu bar.
 let tray = null;
 let trayTickInterval = null;
+let trayPollInterval = null;
 let trayTimerStatus = null; // { label, startedAtMs } | null
 let toggleTimerMenuItem = null;
 // The quick-capture bar. Never the "main window": activate, the tray click and
@@ -563,20 +564,44 @@ function installContextMenu() {
   });
 }
 
+// Tray ----------------------------------------------------------------------
+//
+// The menu bar item is Doem's tracking remote: what is being timed and for how
+// long, one click to stop it, one click to start an activity or one of today's
+// tasks. Quick add has its own global shortcut, so it is one row here, not the
+// point. The tray reads and writes the local API itself instead of asking the
+// window, so it works with the window closed and never brings it forward.
+
+/** "12:34" under an hour, "1:02:34" past it. */
 function formatTrayElapsed(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const mm = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const h = Math.floor(totalSeconds / 3600);
+  const mm = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
   const ss = String(totalSeconds % 60).padStart(2, "0");
-  return `${mm}:${ss}`;
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** "3h 20m", "45m", "0m". */
+function formatTrayDuration(minutes) {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  if (h === 0) return `${m}m`;
+  return m % 60 === 0 ? `${h}h` : `${h}h ${m % 60}m`;
 }
 
 // A raw task title can run to a full sentence, and the menu bar has no
 // wrapping — left unbounded it pushes Doem's own View/Task menus off the
 // right edge of the screen on a 13" display.
 const TRAY_LABEL_MAX = 24;
+// Menu rows have more room than the bar, but a paragraph-long title still
+// makes the whole menu as wide as the screen.
+const TRAY_MENU_LABEL_MAX = 48;
+const TRAY_TASKS_MAX = 8;
+const TRAY_ACTIVITIES_MAX = 8;
+const TRAY_RECENT_MAX = 5;
 
-function truncateTrayLabel(label) {
-  return label.length > TRAY_LABEL_MAX ? `${label.slice(0, TRAY_LABEL_MAX - 1)}…` : label;
+function truncateTrayLabel(label, max = TRAY_LABEL_MAX) {
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
 }
 
 function updateTrayTitle() {
@@ -586,15 +611,292 @@ function updateTrayTitle() {
     return;
   }
   const elapsed = formatTrayElapsed(Date.now() - trayTimerStatus.startedAtMs);
-  tray.setTitle(` ${truncateTrayLabel(trayTimerStatus.label)} · ${elapsed}`);
+  tray.setTitle(` ${truncateTrayLabel(trayTimerStatus.label)} · ${elapsed}`, { fontType: "monospacedDigit" });
 }
 
-/**
- * A time tracker's highest-value native addition: the running timer visible
- * (and stoppable-by-glancing-at) from the menu bar without switching to the
- * app at all. Click toggles the window rather than opening a menu, matching
- * how most menu-bar-timer apps behave.
- */
+function localISODate(d = new Date()) {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function localTimeLabel(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Last good read of the workspace; the menu falls back to it if a read fails. */
+let trayData = null;
+let trayRefreshing = null;
+let trayRefreshTimer = null;
+
+async function trayApi(pathname, init) {
+  // Never the one to spawn the server: after a crash, a background read
+  // restarting it every minute would loop the startup-error dialog.
+  if (!serverProcess) throw new Error("server not running");
+  const base = await serverLifecycle.getUrl();
+  const res = await fetch(`${base}${pathname}`, {
+    ...init,
+    headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(4000),
+  });
+  if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${pathname} failed (${res.status})`);
+  return res.json();
+}
+
+function segmentLabel(segment, data) {
+  if (segment.taskId) {
+    const task = data.tasksById.get(segment.taskId);
+    if (task) return task.title;
+  }
+  if (segment.activityId) {
+    const activity = data.activitiesById.get(segment.activityId);
+    if (activity) return activity.name;
+  }
+  return data.categoriesById.get(segment.categoryId)?.name ?? "Tracking";
+}
+
+async function loadTrayData() {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const [tasks, categories, activities, segs] = await Promise.all([
+    trayApi("/api/tasks"),
+    trayApi("/api/categories"),
+    trayApi("/api/activities"),
+    trayApi(
+      `/api/segments?from=${encodeURIComponent(midnight.toISOString())}&to=${encodeURIComponent(now.toISOString())}`,
+    ),
+  ]);
+  const data = {
+    tasksById: new Map(tasks.map((t) => [t.id, t])),
+    categoriesById: new Map(categories.map((c) => [c.id, c])),
+    activitiesById: new Map(activities.map((a) => [a.id, a])),
+    running: segs.running,
+    todayMinutes: 0,
+    todayTasks: [],
+    recentTasks: [],
+    pinnedActivities: [],
+    categories: categories.filter((c) => !c.archived).sort((a, b) => a.sortOrder - b.sortOrder),
+    activitiesByCategory: new Map(),
+  };
+
+  // Only the part of each segment that falls inside today counts.
+  const nowMs = now.getTime();
+  for (const s of segs.segments) {
+    const from = Math.max(new Date(s.startedAt).getTime(), midnight.getTime());
+    const to = s.endedAt ? new Date(s.endedAt).getTime() : nowMs;
+    if (to > from) data.todayMinutes += (to - from) / 60_000;
+  }
+  if (segs.running && !segs.segments.some((s) => s.id === segs.running.id)) {
+    data.todayMinutes += Math.max(0, nowMs - Math.max(new Date(segs.running.startedAt).getTime(), midnight.getTime())) / 60_000;
+  }
+
+  const today = localISODate(now);
+  const open = (t) => t.status === "open" && !t.deletedAt && (!t.startOn || t.startOn <= today);
+  data.todayTasks = tasks
+    .filter((t) => open(t) && ((t.scheduled && t.scheduled <= today) || t.committedOn === today))
+    .sort(
+      (a, b) =>
+        Number(b.committedOn === today) - Number(a.committedOn === today) ||
+        b.priority - a.priority ||
+        (a.scheduled ?? "").localeCompare(b.scheduled ?? "") ||
+        a.sortOrder - b.sortOrder,
+    );
+
+  // Tasks timed earlier today that aren't on today's list (inbox, another
+  // day's task picked up early): newest first, one row each.
+  const listed = new Set(data.todayTasks.map((t) => t.id));
+  const seen = new Set();
+  for (const s of [...segs.segments].sort((a, b) => b.startedAt.localeCompare(a.startedAt))) {
+    if (!s.taskId || listed.has(s.taskId) || seen.has(s.taskId)) continue;
+    const task = data.tasksById.get(s.taskId);
+    if (!task || !open(task)) continue;
+    seen.add(s.taskId);
+    data.recentTasks.push(task);
+    if (data.recentTasks.length >= TRAY_RECENT_MAX) break;
+  }
+
+  const liveCategory = new Map(data.categories.map((c, i) => [c.id, i]));
+  const liveActivities = activities
+    .filter((a) => !a.archived && liveCategory.has(a.categoryId))
+    .sort((a, b) => liveCategory.get(a.categoryId) - liveCategory.get(b.categoryId) || a.sortOrder - b.sortOrder);
+  data.pinnedActivities = liveActivities.filter((a) => a.pinned).slice(0, TRAY_ACTIVITIES_MAX);
+  for (const a of liveActivities) {
+    if (!data.activitiesByCategory.has(a.categoryId)) data.activitiesByCategory.set(a.categoryId, []);
+    data.activitiesByCategory.get(a.categoryId).push(a);
+  }
+  return data;
+}
+
+/** One read in flight at a time; every caller gets that read's result. */
+function refreshTray() {
+  if (quitting) return Promise.resolve(trayData);
+  if (!trayRefreshing) {
+    trayRefreshing = loadTrayData()
+      .then((data) => {
+        trayData = data;
+        trayTimerStatus = data.running
+          ? { label: segmentLabel(data.running, data), startedAtMs: new Date(data.running.startedAt).getTime() }
+          : null;
+        updateTrayTitle();
+        return data;
+      })
+      .catch((err) => {
+        logLine(`[doem] tray refresh failed: ${err.message}`);
+        return trayData;
+      })
+      .finally(() => {
+        trayRefreshing = null;
+      });
+  }
+  return trayRefreshing;
+}
+
+/** The window reports every start/stop/switch; coalesce bursts into one read. */
+function scheduleTrayRefresh() {
+  if (trayRefreshTimer) clearTimeout(trayRefreshTimer);
+  trayRefreshTimer = setTimeout(() => {
+    trayRefreshTimer = null;
+    refreshTray();
+  }, 150);
+}
+
+async function trayTrack(body) {
+  try {
+    if (body) await trayApi("/api/segments", { method: "POST", body: JSON.stringify({ ...body, replaceRunning: true }) });
+    else await trayApi("/api/segments/stop", { method: "POST" });
+  } catch (err) {
+    logLine(`[doem] tray tracking failed: ${err.message}`);
+    if (Notification.isSupported()) {
+      new Notification({ title: "Doem couldn't change the timer", body: "Open Doem and try again there.", icon: iconPath }).show();
+    }
+  }
+  await refreshTray();
+  // The window keeps its own copy of the running timer; tell it to re-read.
+  if (mainWindow && mainLoaded) sendCommand({ type: "tracking-changed" });
+}
+
+// Section headers are a macOS 14 menu item; earlier systems get a plain
+// greyed-out row in the same place.
+const TRAY_HEADERS = parseInt(process.getSystemVersion(), 10) >= 14;
+
+function trayHeader(label) {
+  return TRAY_HEADERS ? { type: "header", label } : { label, enabled: false };
+}
+
+function buildTrayMenu(data) {
+  const items = [];
+  if (!data) {
+    items.push({ label: "Doem is starting…", enabled: false });
+  } else {
+    const running = data.running;
+    if (running) {
+      const category = data.categoriesById.get(running.categoryId)?.name;
+      const label = segmentLabel(running, data);
+      const elapsed = formatTrayDuration((Date.now() - new Date(running.startedAt).getTime()) / 60_000);
+      items.push({ label: truncateTrayLabel(label, TRAY_MENU_LABEL_MAX), enabled: false });
+      items.push({
+        label: [category && category !== label ? category : null, `since ${localTimeLabel(running.startedAt)}`, elapsed]
+          .filter(Boolean)
+          .join(" · "),
+        enabled: false,
+      });
+      items.push({ label: "Stop Tracking", click: () => trayTrack(null) });
+    } else {
+      items.push({ label: "Not tracking", enabled: false });
+    }
+    items.push({ label: `Today: ${formatTrayDuration(data.todayMinutes)} tracked`, enabled: false });
+
+    const isRunning = (match) => Boolean(running && match(running));
+    const taskItem = (task) => ({
+      label: truncateTrayLabel(task.title, TRAY_MENU_LABEL_MAX),
+      type: "checkbox",
+      checked: isRunning((r) => r.taskId === task.id),
+      click: () => (isRunning((r) => r.taskId === task.id) ? undefined : trayTrack({ taskId: task.id })),
+    });
+    const activityItem = (activity) => ({
+      label: truncateTrayLabel(activity.name, TRAY_MENU_LABEL_MAX),
+      type: "checkbox",
+      checked: isRunning((r) => !r.taskId && r.activityId === activity.id),
+      click: () =>
+        isRunning((r) => !r.taskId && r.activityId === activity.id)
+          ? undefined
+          : trayTrack({ categoryId: activity.categoryId, activityId: activity.id }),
+    });
+
+    if (data.categories.length > 0) {
+      items.push({ type: "separator" }, trayHeader("Activities"));
+      for (const a of data.pinnedActivities) items.push(activityItem(a));
+      items.push({
+        label: data.pinnedActivities.length > 0 ? "More Activities" : "Start an Activity",
+        submenu: data.categories.map((c) => {
+          const acts = data.activitiesByCategory.get(c.id) ?? [];
+          const justCategory = {
+            label: c.name,
+            type: "checkbox",
+            checked: isRunning((r) => !r.taskId && !r.activityId && r.categoryId === c.id),
+            click: () => trayTrack({ categoryId: c.id }),
+          };
+          if (acts.length === 0) return justCategory;
+          return { label: c.name, submenu: [justCategory, { type: "separator" }, ...acts.map(activityItem)] };
+        }),
+      });
+    }
+
+    items.push({ type: "separator" }, trayHeader("Today’s Tasks"));
+    if (data.todayTasks.length === 0) {
+      items.push({ label: "Nothing scheduled today", enabled: false });
+    } else {
+      for (const t of data.todayTasks.slice(0, TRAY_TASKS_MAX)) items.push(taskItem(t));
+      if (data.todayTasks.length > TRAY_TASKS_MAX) {
+        items.push({
+          label: `${data.todayTasks.length - TRAY_TASKS_MAX} More`,
+          submenu: data.todayTasks.slice(TRAY_TASKS_MAX).map(taskItem),
+        });
+      }
+    }
+    if (data.recentTasks.length > 0) {
+      items.push({ type: "separator" }, trayHeader("Tracked Earlier Today"));
+      for (const t of data.recentTasks) items.push(taskItem(t));
+    }
+  }
+
+  items.push(
+    { type: "separator" },
+    {
+      label: "Quick Add Task…",
+      accelerator: captureStatus.registered ? captureStatus.shortcut : undefined,
+      registerAccelerator: false,
+      click: () => toggleCaptureWindow(true),
+    },
+    {
+      label: "Open Tracking",
+      click: () => {
+        activateOrCreateWindow();
+        sendCommandReliably({ type: "navigate", path: "/tracking" });
+      },
+    },
+    { label: "Open Doem", click: () => activateOrCreateWindow() },
+    { type: "separator" },
+    { label: "Quit Doem", role: "quit" },
+  );
+  return Menu.buildFromTemplate(items);
+}
+
+let trayMenuOpening = false;
+
+async function openTrayMenu() {
+  if (!tray || trayMenuOpening) return;
+  trayMenuOpening = true;
+  try {
+    // A local read is a few milliseconds; don't hold the click hostage to a
+    // server that is still starting — show what we have.
+    const data = await Promise.race([refreshTray(), new Promise((r) => setTimeout(() => r(trayData), 400))]);
+    tray.popUpContextMenu(buildTrayMenu(data));
+  } finally {
+    trayMenuOpening = false;
+  }
+}
+
 function createTray() {
   if (process.platform !== "darwin") return;
   // Monochrome template mark (black + alpha). Electron picks up the @2x file
@@ -604,34 +906,16 @@ function createTray() {
   trayImage.setTemplateImage(true);
   tray = new Tray(trayImage);
   tray.setToolTip("Doem");
-  // Right-click opens a menu. A permanent tray menu would replace the left-click
-  // toggle below, so the menu is popped up by hand, rebuilt each time so the
-  // timer item always matches the current state.
-  tray.on("right-click", () => {
-    const menu = Menu.buildFromTemplate([
-      { label: "Quick add", click: () => toggleCaptureWindow(true) },
-      {
-        label: trayTimerStatus ? "Stop timer" : "Start timer",
-        enabled: Boolean(toggleTimerMenuItem && toggleTimerMenuItem.enabled),
-        click: () => sendCommand({ type: "toggle-timer" }),
-      },
-      { type: "separator" },
-      { label: "Open Doem", click: () => activateOrCreateWindow() },
-    ]);
-    tray.popUpContextMenu(menu);
-  });
-  tray.on("click", () => {
-    if (mainWindow && mainWindow.isVisible()) {
-      mainWindow.hide();
-      return;
-    }
-    // A hidden window still counts toward BrowserWindow.getAllWindows(), so
-    // Dock-click "activate" does nothing for it — the tray is the only way
-    // back once a window has been hidden this way, and it has to actually
-    // work.
-    activateOrCreateWindow();
-  });
+  // No permanent setContextMenu: the menu is rebuilt on every open so the
+  // running timer, today's total and the task list are current. Either click
+  // opens it, like every other menu bar timer.
+  tray.on("click", () => openTrayMenu());
+  tray.on("right-click", () => openTrayMenu());
   trayTickInterval = setInterval(updateTrayTitle, 1000);
+  // The window reports its own starts and stops; this catches the rest (a
+  // window that is closed, the day rolling over).
+  trayPollInterval = setInterval(refreshTray, 60 * 1000);
+  refreshTray();
 }
 
 ipcMain.on("doem:set-badge", (_event, count) => {
@@ -639,9 +923,11 @@ ipcMain.on("doem:set-badge", (_event, count) => {
   app.dock.setBadge(count > 0 ? String(count) : "");
 });
 
-ipcMain.on("doem:timer-status", (_event, status) => {
-  trayTimerStatus = status ? { label: status.label, startedAtMs: new Date(status.startedAt).getTime() } : null;
-  updateTrayTitle();
+// The window says something started, stopped or switched. The tray re-reads
+// the running segment itself rather than trusting the payload, so activity
+// tracking (no task) shows in the menu bar too.
+ipcMain.on("doem:timer-status", () => {
+  scheduleTrayRefresh();
 });
 
 ipcMain.on("doem:can-toggle-timer", (_event, canToggle) => {
@@ -840,6 +1126,10 @@ async function ensureCaptureWindow() {
     resizable: false,
     skipTaskbar: true,
     show: false,
+    // A non-activating panel on macOS, like Spotlight: it takes typing without
+    // making Doem the active app, so opening or closing it never brings the
+    // main window forward and focus stays with the app you were in.
+    type: process.platform === "darwin" ? "panel" : undefined,
     transparent: true,
     backgroundColor: "#00000000",
     webPreferences: {
@@ -878,10 +1168,14 @@ async function ensureCaptureWindow() {
 
 let captureBusy = false;
 
+function hideCaptureWindow() {
+  if (captureWindow && !captureWindow.isDestroyed() && captureWindow.isVisible()) captureWindow.hide();
+}
+
 async function toggleCaptureWindow(forceShow = false) {
   if (quitting || captureBusy) return;
   if (!forceShow && captureWindow && !captureWindow.isDestroyed() && captureWindow.isVisible()) {
-    captureWindow.hide();
+    hideCaptureWindow();
     return;
   }
   captureBusy = true;
@@ -897,7 +1191,7 @@ async function toggleCaptureWindow(forceShow = false) {
 }
 
 ipcMain.on("doem:capture-close", () => {
-  if (captureWindow && !captureWindow.isDestroyed()) captureWindow.hide();
+  hideCaptureWindow();
 });
 
 ipcMain.on("doem:capture-saved", () => {
@@ -905,6 +1199,13 @@ ipcMain.on("doem:capture-saved", () => {
 });
 
 ipcMain.handle("doem:get-capture-status", () => captureStatus);
+
+// Settings is recording a new shortcut: let the keys reach the page instead of
+// opening the capture bar, then take the shortcut back.
+ipcMain.on("doem:pause-capture-shortcut", (_event, paused) => {
+  if (paused === true) unregisterCaptureShortcut();
+  else if (!captureStatus.registered) registerCaptureShortcut(captureStatus.shortcut);
+});
 
 // Reminders -----------------------------------------------------------------
 
@@ -1171,6 +1472,7 @@ app.on("before-quit", () => {
   quitting = true;
   stopServer();
   if (trayTickInterval) clearInterval(trayTickInterval);
+  if (trayPollInterval) clearInterval(trayPollInterval);
   if (reminderInterval) clearInterval(reminderInterval);
   if (desktopTickInterval) clearInterval(desktopTickInterval);
   if (claudeInterval) clearInterval(claudeInterval);

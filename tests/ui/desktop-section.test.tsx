@@ -80,4 +80,49 @@ describe("DesktopSection", () => {
     fireEvent.click(await screen.findByRole("switch", { name: "Dock badge" }));
     await waitFor(() => expect(mock.calls.at(-1)?.body).toEqual({ dockBadge: "none" }));
   });
+
+  it("records a new capture shortcut and pauses the old one while recording", async () => {
+    const pause = vi.fn();
+    stubBridge({ shortcut: "Control+Alt+Space", registered: true });
+    (window as unknown as { doem: Record<string, unknown> }).doem.pauseCaptureShortcut = pause;
+    const { mock } = renderWorkspace(<DesktopSection />, workspace());
+    fireEvent.click(await screen.findByRole("button", { name: "Change" }));
+    expect(screen.getByText("Press keys…")).toBeTruthy();
+    expect(pause).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(window, { key: "k", code: "KeyK" });
+    expect(screen.getByText(/Use ⌘, ⌃ or ⌥/)).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Meta", code: "MetaLeft", metaKey: true });
+    fireEvent.keyDown(window, { key: "K", code: "KeyK", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(mock.calls.at(-1)?.body).toEqual({ captureShortcut: "Command+Shift+K" }));
+    expect(pause).toHaveBeenLastCalledWith(false);
+  });
+
+  it("reads the physical key when Option changes the character", async () => {
+    const { mock } = renderWorkspace(<DesktopSection />, workspace());
+    fireEvent.click(await screen.findByRole("button", { name: "Change" }));
+    fireEvent.keyDown(window, { key: "∂", code: "KeyD", altKey: true, ctrlKey: true });
+    await waitFor(() => expect(mock.calls.at(-1)?.body).toEqual({ captureShortcut: "Control+Alt+D" }));
+  });
+
+  it("cancels recording with Esc and saves nothing", async () => {
+    const { mock } = renderWorkspace(<DesktopSection />, workspace());
+    fireEvent.click(await screen.findByRole("button", { name: "Change" }));
+    const before = mock.calls.length;
+    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+    expect(await screen.findByText("⌃ ⌥ Space")).toBeTruthy();
+    expect(mock.calls.length).toBe(before);
+  });
+
+  it("offers Reset only for a custom shortcut", async () => {
+    renderWorkspace(<DesktopSection />, workspace());
+    await screen.findByRole("button", { name: "Change" });
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+  });
+
+  it("resets a custom shortcut to the default", async () => {
+    const { mock } = renderWorkspace(<DesktopSection />, workspace({ captureShortcut: "Command+Shift+K" }));
+    expect(await screen.findByText("⌘ ⇧ K")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await waitFor(() => expect(mock.calls.at(-1)?.body).toEqual({ captureShortcut: "Control+Alt+Space" }));
+  });
 });

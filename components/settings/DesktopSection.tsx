@@ -1,36 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Kbd from "@/components/ui/Kbd";
 import Segmented from "@/components/ui/Segmented";
 import Toggle from "@/components/ui/Toggle";
 import SettingRow from "@/components/settings/SettingRow";
+import ShortcutRecorder from "@/components/settings/ShortcutRecorder";
 import { DESKTOP_BUILT, hasDesktopOptions } from "@/lib/desktop-options";
 import { fmt } from "@/lib/format";
 import { useTasks } from "@/lib/store-context";
 import { withSettingsDefaults } from "@/lib/store-context/use-tracking-config";
-
-const MAC_KEYS: Record<string, string> = {
-  control: "⌃",
-  ctrl: "⌃",
-  alt: "⌥",
-  option: "⌥",
-  shift: "⇧",
-  command: "⌘",
-  cmd: "⌘",
-  commandorcontrol: "⌘",
-  cmdorctrl: "⌘",
-  meta: "⌘",
-  super: "⌘",
-};
-
-/** "Control+Alt+Space" reads as "⌃ ⌥ Space". */
-function macShortcut(shortcut: string): string {
-  return shortcut
-    .split("+")
-    .map((part) => MAC_KEYS[part.trim().toLowerCase()] ?? part.trim())
-    .join(" ");
-}
+import { SETTINGS_DEFAULTS } from "@/lib/types";
 
 const NUDGE_OPTIONS: { value: string; label: string }[] = [
   { value: "off", label: "Off" },
@@ -70,7 +49,13 @@ export default function DesktopSection() {
               ? "Opens quick capture from anywhere on your Mac."
               : "Doem could not register this shortcut. Another app may be using it."
           }
-          control={<Kbd>{macShortcut(s.captureShortcut)}</Kbd>}
+          control={
+            <ShortcutRecorder
+              value={s.captureShortcut}
+              defaultValue={SETTINGS_DEFAULTS.captureShortcut}
+              onChange={(captureShortcut) => patchSettings({ captureShortcut })}
+            />
+          }
         />
       )}
       {DESKTOP_BUILT.dockBadge && (

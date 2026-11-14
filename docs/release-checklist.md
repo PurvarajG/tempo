@@ -13,7 +13,9 @@ Tick each box only after seeing the "pass" result.
 ## Desktop shell
 
 - [ ] **Capture shortcut.** Press Ctrl+Option+Space from another app. Pass: the capture bar appears over it, typing and Enter adds a task to the Inbox, the shortcut again (or Esc) hides the bar.
-- [ ] **Tray menu.** Click the menu bar icon. Pass: Quick add opens the capture bar, Start/Stop timer starts and stops the timer (the tray label shows elapsed time while running), Open brings the window forward.
+- [ ] **Change the capture shortcut.** In Settings > Desktop, record a new shortcut, use it from another app, then reset it to the default. Pass: the new one opens the capture bar, the old one no longer does, and the choice survives a restart.
+- [ ] **Tray menu.** Left-click and right-click the menu bar icon. Pass: both open the same menu without bringing the window up. It shows today's tracked total, pinned activities, today's tasks and Quick Add Task…. Picking a task or activity starts timing it without opening the window, and the menu bar shows its elapsed time (`1:02:34` past an hour). With the window open, the sidebar card shows the same timer. Stop Tracking stops it. Open Doem brings the window forward; Quit Doem quits.
+- [ ] **Activity timer in the sidebar.** Start an activity from the Now module on Tracking, go to Inbox, then restart Doem. Pass: the sidebar card shows "Tracking now" with the activity and its clock on every page and after the restart.
 - [ ] **Closing and reopening.** Close the window with the red button, then click the Dock icon. Pass: the window returns with the same page, no second server starts, and the timer (if running) kept counting.
 - [ ] **Second launch focuses.** With Doem open, open it again from Spotlight. Pass: the existing window comes to the front, no second Dock icon.
 - [ ] **Dock badge.** Create overdue or due-today tasks. Pass: the Dock icon shows the count, and it clears when the tasks are done.
