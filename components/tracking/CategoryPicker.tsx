@@ -60,10 +60,10 @@ export default function CategoryPicker({
         aria-controls={open ? menuId : undefined}
         aria-activedescendant={open ? activeOptionId : undefined}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:border-accent/30 sm:min-h-9"
+        className="flex h-9 items-center gap-2 rounded-full px-3.5 text-secondary text-ink-2 inset-ring-1 inset-ring-line-2 transition-colors hover:bg-sunk"
       >
-        {selected ? <CategoryDot color={selected.color} /> : <span className="size-2 shrink-0 rounded-full bg-muted" />}
-        <span className={selected ? "" : "text-muted-foreground"}>{selected?.name ?? "Pick a category"}</span>
+        {selected ? <CategoryDot color={selected.color} /> : <span className="size-2 shrink-0 rounded-full bg-sunk" />}
+        <span className={selected ? "" : "text-ink-3"}>{selected?.name ?? "Pick a category"}</span>
       </button>
 
       {open &&
@@ -74,7 +74,7 @@ export default function CategoryPicker({
             id={menuId}
             role="listbox"
             aria-label={label}
-            className="no-drag fixed z-50 max-h-64 overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-lg"
+            className="no-drag fixed z-50 max-h-64 overflow-y-auto rounded-row bg-surface p-1 shadow-md ring-1 ring-line"
             style={{
               left: position?.left ?? -9999,
               width: position?.width ?? MIN_WIDTH,
@@ -95,8 +95,8 @@ export default function CategoryPicker({
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => select(index)}
                   disabled={isCurrent}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-40 ${
-                    index === activeIndex ? "bg-muted" : ""
+                  className={`flex h-9 w-full items-center gap-2 rounded-tab px-3 text-left text-secondary text-ink hover:bg-sunk disabled:opacity-40 ${
+                    index === activeIndex ? "bg-sunk" : ""
                   }`}
                 >
                   <CategoryDot color={category.color} />

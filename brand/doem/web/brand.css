@@ -1,0 +1,4 @@
+/* Uses the existing app Geist font. */
+.doem-brand { display: inline-flex; align-items: center; gap: 10px; color: #141519; font-family: Geist, sans-serif; font-weight: 600; font-size: 20px; letter-spacing: -.03em; }
+.doem-brand img { width: 32px; height: 32px; display: block; }
+[data-theme="dark"] .doem-brand { color: #ededef; }

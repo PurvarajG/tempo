@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import MetaLabel from "../tracking/MetaLabel";
 
 const pad = (h: number) => String(h).padStart(2, "0");
@@ -10,7 +10,7 @@ const pad = (h: number) => String(h).padStart(2, "0");
  */
 export function hourGridBackground(windowHours: number): string {
   const gridlineStop = 100 / windowHours;
-  return `repeating-linear-gradient(to bottom, transparent 0, transparent calc(${gridlineStop}% - 1px), color-mix(in srgb, var(--color-border) 55%, transparent) calc(${gridlineStop}% - 1px), color-mix(in srgb, var(--color-border) 55%, transparent) ${gridlineStop}%)`;
+  return `repeating-linear-gradient(to bottom, transparent 0, transparent calc(${gridlineStop}% - 1px), color-mix(in srgb, var(--color-line) 55%, transparent) calc(${gridlineStop}% - 1px), color-mix(in srgb, var(--color-line) 55%, transparent) ${gridlineStop}%)`;
 }
 
 /** A full 24h day, the window every calendar grid (as opposed to the
@@ -34,21 +34,65 @@ export function instantToPx(iso: string, pxPerHour: number): number {
   return ((d.getHours() * 60 + d.getMinutes()) / (DAY_WINDOW_HOURS * 60)) * dayHeight(pxPerHour);
 }
 
+/** Calendar grid density: px per hour (soft.html PX=56, `.hrs div{height:56px}`). */
+export const CAL_PX_PER_HOUR = 56;
+
+/**
+ * Scrolls the element `ref` points at to `hour * pxPerHour`, once per distinct
+ * `resetKey` (and once when `hour` first becomes non-null). Does nothing while
+ * `hour` is null. Does not search ancestors.
+ */
+export function useScrollToHour(
+  ref: RefObject<HTMLElement | null>,
+  hour: number | null,
+  pxPerHour: number,
+  resetKey?: string,
+): void {
+  const done = useRef<{ key: string | undefined } | null>(null);
+  useLayoutEffect(() => {
+    if (hour === null) return;
+    if (done.current && done.current.key === resetKey) return;
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTop = hour * pxPerHour;
+    done.current = { key: resetKey };
+  }, [ref, hour, pxPerHour, resetKey]);
+}
+
 /** The hour-label rail. One per grid, however many hour-boxes sit beside it. */
 export function HourRail({
   windowStartHour,
   windowHours,
   height,
-  className = "w-10 shrink-0 sm:w-12",
+  className,
+  variant = "default",
 }: {
   windowStartHour: number;
   windowHours: number;
   height: number;
   className?: string;
+  variant?: "default" | "calendar";
 }) {
   const hours = Array.from({ length: windowHours }, (_, i) => (windowStartHour + i) % 24);
+  if (variant === "calendar") {
+    // soft.html `.hrs div`: plain mono 11px ink-3, right-aligned, 12px right
+    // padding, pulled up 7px onto its hour line; the first label stays put.
+    return (
+      <div className={className}>
+        {hours.map((hour, i) => (
+          <div
+            key={i}
+            className={`pr-3 text-right font-mono text-caption text-ink-3 ${i === 0 ? "" : "-translate-y-1.75"}`}
+            style={{ height: height / windowHours }}
+          >
+            {pad(hour)}:00
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className ?? "w-10 shrink-0 sm:w-12"}`}>
       {hours.map((hour, i) => (
         <div key={i} className="absolute -translate-y-1/2" style={{ top: (i / windowHours) * height }}>
           <MetaLabel>{pad(hour)}:00</MetaLabel>
@@ -91,19 +135,19 @@ export function HourGridBox({
       // richer widget it isn't.
       role={ariaLabel ? "group" : undefined}
       aria-label={ariaLabel}
-      className={`relative isolate min-w-0 flex-1 rounded-lg border border-border/70 bg-card transition-colors ${className}`}
+      className={`relative isolate min-w-0 flex-1 rounded-lg border border-line bg-raised transition-colors ${className}`}
       style={{ height, backgroundImage: hourGridBackground(windowHours) }}
     >
       {children}
       {nowOffset !== null && nowOffset >= 0 && nowOffset <= height && (
         <div
           aria-label="Now"
-          className="pointer-events-none absolute inset-x-0 z-10 h-px bg-now"
+          className="pointer-events-none absolute inset-x-0 z-10 h-px bg-accent"
           style={{ top: nowOffset }}
         >
           <span
             aria-hidden
-            className="absolute -top-0.75 left-0 size-1.75 rounded-full bg-now"
+            className="absolute -top-0.75 left-0 size-1.75 rounded-full bg-accent"
           />
         </div>
       )}

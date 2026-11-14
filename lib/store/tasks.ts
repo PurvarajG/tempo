@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { withTransaction } from "../db";
 import type { Tx } from "../db";
-import { nextOccurrence } from "../parse";
+import { addDays, daysBetween, nextOccurrence, toISODate } from "../parse";
 import type { Subtask, Task, TaskInput } from "../types";
 import {
   db,
@@ -40,7 +40,7 @@ export async function search(q: string): Promise<Task[]> {
   const rows = await db.query<TaskRow>(
     `select * from tasks
       where status <> 'trashed' and (title ilike $1 or notes ilike $1 or $2 = any(tags))
-      order by scheduled asc`,
+      order by scheduled asc nulls last`,
     [`%${q}%`, q.toLowerCase()],
   );
   return hydrate(db, rows);
@@ -70,48 +70,173 @@ async function resolveStage(
  */
 function resolveComplex(
   isComplex: boolean,
-  scheduled: string,
+  scheduled: string | null,
   finishDate: string | undefined,
   dueTime: string | undefined,
 ): { finishDate: string | undefined; dueTime: string | undefined } {
   if (!isComplex) return { finishDate: undefined, dueTime };
+  if (!scheduled) {
+    throw new TaskInvariantError("A complex task needs a scheduled date");
+  }
   if (!finishDate || finishDate < scheduled) {
     throw new TaskInvariantError("finishDate must be on or after scheduled for a complex task");
   }
   return { finishDate, dueTime: undefined };
 }
 
+function checkWindow(startOn: string | null | undefined, expiresOn: string | null | undefined) {
+  if (startOn && expiresOn && expiresOn < startOn) {
+    throw new TaskInvariantError("expiresOn must be on or after startOn");
+  }
+}
+
+async function insertTask(tx: Tx, input: TaskInput): Promise<Task> {
+  const stageId = await resolveStage(tx, input.projectId, input.stageId);
+  const isComplex = input.isComplex ?? false;
+  const scheduled = input.scheduled ?? null;
+  const resolved = resolveComplex(isComplex, scheduled, input.finishDate, input.dueTime);
+  checkWindow(input.startOn, input.expiresOn);
+  const rows = await tx.query<TaskRow>(
+    `insert into tasks
+       (id, title, notes, project_id, stage_id, tags, scheduled, due_time, minutes,
+        priority, status, recurrence, sort_order, board_order, is_complex, finish_date,
+        committed_on, start_on, expires_on, stage_entered_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'open',$11,
+       coalesce((select max(sort_order) + 1 from tasks), 0),
+       coalesce((select max(board_order) + 1 from tasks where stage_id = $5), 0),
+       $12, $13, $14, $15, $16,
+       case when $5::uuid is null then null else now() end)
+     returning *`,
+    [
+      randomUUID(),
+      input.title,
+      input.notes ?? null,
+      input.projectId ?? null,
+      stageId,
+      input.tags ?? [],
+      scheduled,
+      resolved.dueTime ?? null,
+      input.minutes,
+      input.priority,
+      input.recurrence ? JSON.stringify(input.recurrence) : null,
+      isComplex,
+      resolved.finishDate ?? null,
+      input.committedOn ?? null,
+      input.startOn ?? null,
+      input.expiresOn ?? null,
+    ],
+  );
+  return (await hydrate(tx, rows))[0];
+}
+
 export async function addTask(input: TaskInput): Promise<Task> {
+  return withTransaction((tx) => insertTask(tx, input));
+}
+
+/** All-or-nothing batch create; tasks come back in input order. */
+export async function addTasks(inputs: TaskInput[]): Promise<Task[]> {
+  if (inputs.length === 0) return [];
   return withTransaction(async (tx) => {
-    const stageId = await resolveStage(tx, input.projectId, input.stageId);
-    const isComplex = input.isComplex ?? false;
-    const resolved = resolveComplex(isComplex, input.scheduled, input.finishDate, input.dueTime);
+    const out: Task[] = [];
+    for (const input of inputs) out.push(await insertTask(tx, input));
+    return out;
+  });
+}
+
+/**
+ * Moves every task to `day` (null = back to the inbox) in one transaction.
+ * Complex tasks keep their span length; a committed task that no longer sits
+ * on its committed day is uncommitted. Unknown ids are skipped.
+ */
+export async function rescheduleTasks(ids: string[], day: string | null): Promise<Task[]> {
+  if (ids.length === 0) return [];
+  return withTransaction(async (tx) => {
+    const out: Task[] = [];
+    for (const id of ids) {
+      const current = await getTask(id, tx);
+      if (!current) continue;
+      let finish: string | null = current.finishDate ?? null;
+      if (current.isComplex) {
+        if (day === null) {
+          throw new TaskInvariantError("A complex task needs a scheduled date");
+        }
+        if (current.scheduled && finish) {
+          finish = addDays(finish, daysBetween(current.scheduled, day));
+        }
+      }
+      const rows = await tx.query<TaskRow>(
+        `update tasks
+            set scheduled = $2, finish_date = $3,
+                committed_on = case when committed_on = $2::date then committed_on else null end
+          where id = $1
+          returning *`,
+        [id, day, current.isComplex ? finish : (current.finishDate ?? null)],
+      );
+      if (rows.length) out.push((await hydrate(tx, rows))[0]);
+    }
+    return out;
+  });
+}
+
+/** The day is full; the caller offers "Swap with..." using `committed`. */
+export class CommitCapReached extends Error {
+  committed: Task[];
+  constructor(message: string, committed: Task[]) {
+    super(message);
+    this.name = "CommitCapReached";
+    this.committed = committed;
+  }
+}
+
+export async function commitTask(id: string, day: string): Promise<Task | null> {
+  return withTransaction(async (tx) => {
+    const task = await getTask(id, tx);
+    if (!task) return null;
+    if (task.committedOn === day && task.status === "open") return task;
+
+    const capRows = await tx.query<{ today_cap: number | null }>(
+      `select today_cap from tracking_settings limit 1`,
+    );
+    const cap = capRows[0]?.today_cap ?? 3;
+    const others = await tx.query<TaskRow>(
+      `select * from tasks
+        where status = 'open' and committed_on = $1 and id <> $2
+        order by sort_order asc, created_at asc`,
+      [day, id],
+    );
+    if (others.length >= cap) {
+      throw new CommitCapReached(
+        `Already ${others.length} committed for ${day}`,
+        await hydrate(tx, others),
+      );
+    }
     const rows = await tx.query<TaskRow>(
-      `insert into tasks
-         (id, title, notes, project_id, stage_id, tags, scheduled, due_time, minutes,
-          priority, status, recurrence, sort_order, board_order, is_complex, finish_date)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'open',$11,
-         coalesce((select max(sort_order) + 1 from tasks), 0),
-         coalesce((select max(board_order) + 1 from tasks where stage_id = $5), 0),
-         $12, $13)
-       returning *`,
-      [
-        randomUUID(),
-        input.title,
-        input.notes ?? null,
-        input.projectId ?? null,
-        stageId,
-        input.tags ?? [],
-        input.scheduled,
-        resolved.dueTime ?? null,
-        input.minutes,
-        input.priority,
-        input.recurrence ? JSON.stringify(input.recurrence) : null,
-        isComplex,
-        resolved.finishDate ?? null,
-      ],
+      `update tasks set committed_on = $2 where id = $1 returning *`,
+      [id, day],
     );
     return (await hydrate(tx, rows))[0];
+  });
+}
+
+export async function uncommitTask(id: string): Promise<Task | null> {
+  const rows = await db.query<TaskRow>(
+    `update tasks set committed_on = null where id = $1 returning *`,
+    [id],
+  );
+  if (rows.length === 0) return null;
+  return (await hydrate(db, rows))[0];
+}
+
+/** Trashes open tasks whose expiry day has arrived; returns them for the review's undo list. */
+export async function expireDueTasks(todayISO: string): Promise<Task[]> {
+  return withTransaction(async (tx) => {
+    const rows = await tx.query<TaskRow>(
+      `update tasks set status = 'trashed', deleted_at = now()
+        where status = 'open' and expires_on is not null and expires_on <= $1
+        returning *`,
+      [todayISO],
+    );
+    return hydrate(tx, rows);
   });
 }
 
@@ -137,6 +262,15 @@ export async function updateTask(id: string, patch: Partial<TaskInput>): Promise
     if (patch.notes !== undefined) col("notes", patch.notes || null);
     if (patch.tags !== undefined) col("tags", patch.tags);
     if (patch.scheduled !== undefined) col("scheduled", patch.scheduled);
+    if (patch.committedOn !== undefined) col("committed_on", patch.committedOn);
+    if (patch.startOn !== undefined) col("start_on", patch.startOn);
+    if (patch.expiresOn !== undefined) col("expires_on", patch.expiresOn);
+    if (patch.startOn !== undefined || patch.expiresOn !== undefined) {
+      checkWindow(
+        patch.startOn !== undefined ? patch.startOn : current.startOn,
+        patch.expiresOn !== undefined ? patch.expiresOn : current.expiresOn,
+      );
+    }
     if (patch.minutes !== undefined) col("minutes", patch.minutes);
     if (patch.priority !== undefined) col("priority", patch.priority);
     if (patch.recurrence !== undefined)
@@ -173,6 +307,9 @@ export async function updateTask(id: string, patch: Partial<TaskInput>): Promise
       );
       col("project_id", projectId ?? null);
       col("stage_id", stageId);
+      if (stageId !== (current.stageId ?? null)) {
+        sets.push(stageId ? `stage_entered_at = now()` : `stage_entered_at = null`);
+      }
       col(
         "board_order",
         stageId
@@ -248,7 +385,9 @@ export async function moveTaskToStage(
       [stageId, id, index],
     );
     await tx.query(
-      `update tasks set stage_id = $2, board_order = $3${statusFix} where id = $1`,
+      `update tasks set stage_id = $2, board_order = $3${statusFix}${
+        from !== stageId ? `, stage_entered_at = now()` : ""
+      } where id = $1`,
       [id, stageId, index],
     );
     await renumberStage(tx, stageId);
@@ -268,6 +407,8 @@ export async function completeTask(id: string): Promise<{ task: Task; next: Task
     const rows = await tx.query<TaskRow>(
       `update tasks
           set status = 'done', completed_at = now(),
+              stage_entered_at = case when $2::uuid is not null and stage_id is distinct from $2::uuid
+                then now() else stage_entered_at end,
               stage_id = coalesce($2, stage_id),
               board_order = case when $2 is null then board_order
                 else coalesce((select max(board_order)+1 from tasks where stage_id = $2), 0) end
@@ -284,13 +425,14 @@ export async function completeTask(id: string): Promise<{ task: Task; next: Task
   // The follow-up occurrence is a normal create, so it picks up the project's
   // first open column the same way any other new task does.
   const source = result.recurrence;
+  const today = toISODate(new Date());
   const next = source.recurrence
     ? await addTask({
         title: source.title,
         notes: source.notes,
         projectId: source.projectId,
         tags: source.tags,
-        scheduled: nextOccurrence(source.scheduled, source.recurrence),
+        scheduled: nextOccurrence(source.scheduled ?? today, source.recurrence, today),
         dueTime: source.dueTime,
         minutes: source.minutes,
         priority: source.priority,
@@ -310,6 +452,8 @@ export async function reopenTask(id: string): Promise<Task | null> {
     const rows = await tx.query<TaskRow>(
       `update tasks
           set status = 'open', completed_at = null,
+              stage_entered_at = case when $2::uuid is not null and stage_id is distinct from $2::uuid
+                then now() else stage_entered_at end,
               stage_id = coalesce($2, stage_id),
               board_order = case when $2 is null then board_order
                 else coalesce((select max(board_order)+1 from tasks where stage_id = $2), 0) end

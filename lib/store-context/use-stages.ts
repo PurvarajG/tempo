@@ -12,6 +12,8 @@ export type StagesApi = {
   renameStage: (id: string, name: string) => Promise<void>;
   reorderStages: (projectId: string, ids: string[]) => Promise<void>;
   removeStage: (id: string, moveTo: string) => Promise<void>;
+  /** Patches a stage; `wipLimit: null` clears the limit. */
+  updateStage: (id: string, patch: { name?: string; wipLimit?: number | null }) => Promise<void>;
 };
 
 export function useStages(onError: (message: string) => void): StagesApi {
@@ -59,6 +61,29 @@ export function useStages(onError: (message: string) => void): StagesApi {
     [onError],
   );
 
+  const updateStage = useCallback<StagesApi["updateStage"]>(
+    async (id, patch) => {
+      let before: ProjectStage[] = [];
+      setStages((prev) => {
+        before = prev;
+        return prev.map((s) => (s.id === id ? { ...s, ...patch } : s));
+      });
+      try {
+        const saved = await request<ProjectStage | undefined>(`/api/stages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
+        if (saved && typeof saved === "object" && "id" in saved) {
+          setStages((prev) => prev.map((s) => (s.id === id ? { ...s, ...saved } : s)));
+        }
+      } catch (error) {
+        setStages(before);
+        onError((error as Error).message);
+      }
+    },
+    [onError],
+  );
+
   const reorderStages = useCallback(
     async (projectId: string, ids: string[]) => {
       let before: ProjectStage[] = [];
@@ -93,5 +118,5 @@ export function useStages(onError: (message: string) => void): StagesApi {
     [onError],
   );
 
-  return { stages, setStages, stagesFor, addStage, renameStage, reorderStages, removeStage };
+  return { stages, setStages, stagesFor, addStage, renameStage, updateStage, reorderStages, removeStage };
 }

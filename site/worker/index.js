@@ -1,4 +1,4 @@
-/** Serve Tempo's prebuilt static assets through the Sites worker runtime. */
+/** Serve Doem's prebuilt static assets through the Sites worker runtime. */
 const worker = {
   fetch(request, env) {
     const url = new URL(request.url);

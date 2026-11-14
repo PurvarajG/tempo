@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useTasks } from "@/lib/store-context";
 import type { ProjectStage, Task } from "@/lib/types";
+import Icon from "@/components/ui/Icon";
 import Card from "./Card";
+import { laneCountLabel, laneGlyph, openInStage } from "./lanes";
+
+const DONE_VISIBLE = 2;
 
 export default function Column({
   stage,
@@ -16,8 +20,6 @@ export default function Column({
   cardProps,
   columnProps,
   onMove,
-  onRemove,
-  onCollapse,
 }: {
   stage: ProjectStage;
   stages: ProjectStage[];
@@ -31,62 +33,52 @@ export default function Column({
   };
   columnProps: (stageId: string, count: number) => React.HTMLAttributes<HTMLElement>;
   onMove: (taskId: string, stageId: string, index: number) => void;
-  onRemove: () => void;
-  /** Only set for backlog-kind columns — collapses this column into the
-   *  prototype's single-line CollapsedBar. */
-  onCollapse?: () => void;
 }) {
-  const { addTask, renameStage } = useTasks();
-  const [name, setName] = useState(stage.name);
+  const { addTask } = useTasks();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [expanded, setExpanded] = useState(false);
+
+  const isDone = stage.kind === "done";
+  const glyph = laneGlyph(stage.kind);
+  const count = laneCountLabel(tasks.length, openInStage(tasks, stage.id), stage.wipLimit);
+  const collapsed = isDone && !expanded && tasks.length > DONE_VISIBLE;
+  const shown = collapsed ? tasks.slice(0, DONE_VISIBLE) : tasks;
+  const hidden = tasks.length - DONE_VISIBLE;
+  const addLabel = `Add a task to ${stage.name}`;
 
   return (
     <section
       {...columnProps(stage.id, tasks.length)}
       aria-label={`${stage.name}, ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`}
-      className="group/column flex w-72 shrink-0 flex-col rounded-xl bg-muted/50 p-3"
+      className="flex min-w-0 flex-col rounded-card bg-sunk p-2"
     >
-      <header className="flex items-center gap-2 px-1 pb-2">
-        <input
-          value={name}
-          aria-label={`Rename ${stage.name} column`}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => {
-            const next = name.trim();
-            if (next && next !== stage.name) renameStage(stage.id, next);
-            else setName(stage.name);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            if (e.key === "Escape") {
-              setName(stage.name);
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-          className="min-w-0 flex-1 rounded-md bg-transparent px-1 py-0.5 font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground outline-none hover:bg-muted focus:bg-card focus:text-foreground"
-        />
-        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{tasks.length}</span>
-        {onCollapse && (
-          <button
-            onClick={onCollapse}
-            aria-label={`Collapse ${stage.name} column`}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-muted-foreground opacity-0 hover:bg-border hover:text-foreground focus:opacity-100 group-hover/column:opacity-100"
-          >
-            ‹›
-          </button>
+      <h2 className="flex min-h-12 items-center gap-2 px-2 pt-2 pb-3 text-title text-ink">
+        {glyph === "live" ? (
+          <span aria-hidden className="mx-1 size-1.5 rounded-full bg-ok shadow-live" />
+        ) : (
+          <span className="text-ink-2">
+            <Icon name={glyph} />
+          </span>
         )}
-        <button
-          onClick={onRemove}
-          aria-label={`Remove ${stage.name} column`}
-          className="shrink-0 rounded-md px-1.5 py-0.5 text-muted-foreground opacity-0 hover:bg-border hover:text-foreground focus:opacity-100 group-hover/column:opacity-100"
-        >
-          ×
-        </button>
-      </header>
+        {stage.name}
+        <span className={`font-normal ${count.over ? "text-med" : "text-ink-3"}`}>{count.text}</span>
+        <span className="ml-auto flex items-center gap-1">
+          {!isDone && (
+            <button
+              type="button"
+              aria-label={addLabel}
+              onClick={() => setAdding(true)}
+              className="grid size-7 place-items-center rounded-tile text-ink-3 hover:bg-surface"
+            >
+              <Icon name="plus" />
+            </button>
+          )}
+        </span>
+      </h2>
 
-      <ul className="flex min-h-16 flex-1 flex-col gap-2">
-        {tasks.map((task, index) => (
+      <ul className="flex flex-col gap-2">
+        {shown.map((task, index) => (
           <div key={task.id} className="contents">
             {dropIndex === index && <DropLine />}
             <Card
@@ -95,22 +87,29 @@ export default function Column({
               todayISO={todayISO}
               dragging={dragTaskId === task.id}
               dragProps={cardProps(task.id, stage.id, index)}
-              onMoveToStage={(stageId) => onMove(task.id, stageId, 0)}
+              onMoveToStage={(id) => onMove(task.id, id, 0)}
+              laneKind={stage.kind}
             />
           </div>
         ))}
-        {dropIndex === tasks.length && <DropLine />}
+        {dropIndex !== null && dropIndex >= shown.length && <DropLine />}
 
         {tasks.length === 0 && dropIndex === null && (
-          <p className="px-1 py-3 text-xs text-muted-foreground">Nothing here yet.</p>
+          <p className="px-2 py-3 text-meta text-ink-3">Nothing here yet.</p>
         )}
       </ul>
 
-      {adding ? (
+      {isDone && tasks.length > DONE_VISIBLE && (
+        <button type="button" onClick={() => setExpanded((v) => !v)} className={`${GHOST} mt-2`}>
+          {expanded ? "Show less" : `Show ${hidden} more`}
+        </button>
+      )}
+
+      {adding && (
         <input
           autoFocus
           value={draft}
-          aria-label={`Add a task to ${stage.name}`}
+          aria-label={addLabel}
           placeholder="What needs doing?"
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
@@ -124,19 +123,22 @@ export default function Column({
             setDraft("");
             await addTask(text, { projectId, stageId: stage.id }).catch(() => {});
           }}
-          className="mt-2 h-9 w-full rounded-lg border border-border bg-card px-2.5 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-accent/40"
+          className="mt-2 h-10 w-full rounded-tab bg-surface px-3 text-body ring-1 ring-line placeholder:text-ink-3"
         />
-      ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="mt-2 rounded-lg px-2 py-2 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          + Add task
+      )}
+
+      {stage.kind === "backlog" && !adding && (
+        <button type="button" onClick={() => setAdding(true)} className={`${GHOST} mt-2`}>
+          <Icon name="plus" />
+          Add task
         </button>
       )}
     </section>
   );
 }
+
+const GHOST =
+  "flex h-10 w-full items-center justify-center gap-2 rounded-tab text-secondary text-ink-3 inset-ring-1 inset-ring-line-2";
 
 function DropLine() {
   return <li aria-hidden className="h-0.5 rounded-full bg-accent" />;

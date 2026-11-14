@@ -1,4 +1,4 @@
-name: Release Tempo
+name: Release Doem
 
 on:
   push:
@@ -37,10 +37,10 @@ jobs:
             echo "Expected one Apple Silicon DMG, found ${#dmgs[@]}." >&2
             exit 1
           fi
-          cp "${dmgs[0]}" dist-electron/Tempo-latest-arm64.dmg
+          cp "${dmgs[0]}" dist-electron/Doem-latest-arm64.dmg
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: dist-electron/Tempo-latest-arm64.dmg
+          files: dist-electron/Doem-latest-arm64.dmg

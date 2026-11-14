@@ -34,7 +34,7 @@ test("the feed is a well-formed VCALENDAR with CRLF line endings", () => {
 
   const l = lines(feed);
   assert.ok(l.includes("VERSION:2.0"));
-  assert.ok(l.includes("PRODID:-//Tempo//Task Feed//EN"));
+  assert.ok(l.includes("PRODID:-//Doem//Task Feed//EN"));
   assert.ok(l.includes("BEGIN:VEVENT"));
   assert.ok(l.includes("END:VEVENT"));
 });
@@ -135,4 +135,15 @@ test("a long title is folded in the emitted feed", () => {
   const feed = buildIcsFeed([task({ title: "y".repeat(200) })]);
   assert.ok(feed.includes("\r\n "), "the feed contains a folded continuation line");
   assert.ok(lines(feed).includes(`SUMMARY:${"y".repeat(200)}`), "unfolding restores the title");
+});
+
+test("an undated task produces no VEVENT while a dated one still does", () => {
+  const dated = task({ id: "22222222-2222-4222-8222-222222222222", title: "Dated one" });
+  const undated = task({ id: "33333333-3333-4333-8333-333333333333", title: "Inbox one", scheduled: null });
+  const feed = buildIcsFeed([undated, dated]);
+  assert.equal(lines(feed).filter((line) => line === "BEGIN:VEVENT").length, 1);
+  assert.ok(feed.includes("Dated one"));
+  assert.ok(!feed.includes("Inbox one"));
+  assert.ok(!feed.includes(undated.id));
+  assert.ok(!lines(feed).some((line) => /^DTSTART[:;]\s*$/.test(line) || line === "DTSTART:" || line === "DTSTART;VALUE=DATE:"));
 });

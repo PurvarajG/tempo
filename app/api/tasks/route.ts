@@ -1,8 +1,7 @@
 import { handle, json } from "@/lib/api";
-import { store } from "@/lib/store";
-import { parseQuickAdd } from "@/lib/parse";
-import type { TaskInput } from "@/lib/types";
-import * as v from "@/lib/validate";
+import { CommitCapReached, store } from "@/lib/store";
+import { toISODate } from "@/lib/parse";
+import { toInput } from "./_input";
 
 export async function GET(request: Request) {
   const q = new URL(request.url).searchParams.get("q");
@@ -11,32 +10,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return handle(async () => {
-    const b = v.body(await json(request));
+    const raw = await json(request);
+    const { dateOrder } = await store.getTrackingSettings();
+    const { input, commit } = await toInput(raw, { dateOrder, fallback: undefined });
+    const task = await store.addTask(input);
+    if (!commit) return task;
 
-    // Two ways in: a raw line to parse (web quick-add, Telegram) or explicit fields.
-    const parsed = b.text ? parseQuickAdd(v.nonEmpty(b.text, "text", 1000)) : null;
-
-    const projectName = parsed?.projectName ?? v.optionalStr(b.projectName, "projectName", 120);
-    const projectId = projectName
-      ? (await store.findOrCreateProjectByName(projectName)).id
-      : v.optionalUuid(b.projectId, "projectId");
-
-    const input: TaskInput = {
-      title: parsed?.title ?? v.nonEmpty(b.title, "Title", 500),
-      notes: parsed?.notes ?? v.optionalStr(b.notes, "notes"),
-      projectId,
-      // A named column only makes sense alongside the project that owns it.
-      stageId: projectId ? v.optionalUuid(b.stageId, "stageId") : undefined,
-      tags: parsed?.tags ?? (b.tags !== undefined ? v.tags(b.tags, "tags") : []),
-      scheduled: parsed?.scheduled ?? v.isoDate(b.scheduled, "scheduled"),
-      dueTime: parsed?.dueTime ?? v.optionalTime(b.dueTime, "dueTime"),
-      minutes: parsed?.minutes ?? v.duration(b.minutes, "minutes"),
-      priority: parsed?.priority ?? (b.priority !== undefined ? v.priority(b.priority, "priority") : 0),
-      recurrence: parsed?.recurrence,
-      isComplex: b.isComplex !== undefined ? v.bool(b.isComplex, "isComplex") : undefined,
-      finishDate: b.finishDate ? v.isoDate(b.finishDate, "finishDate") : undefined,
-    };
-
-    return store.addTask(input);
+    try {
+      return (await store.commitTask(task.id, toISODate(new Date()))) ?? task;
+    } catch (error) {
+      if (error instanceof CommitCapReached) return { ...task, capReached: true };
+      throw error;
+    }
   }, 201);
 }

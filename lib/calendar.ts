@@ -1,4 +1,5 @@
-import { toISODate } from "./parse";
+import { addDays, toISODate } from "./parse";
+import { fmtDayLong, fmtMonthYear, fmtRange, fmtWeekday, MONTHS_LONG } from "./format";
 
 export type CalendarDay = {
   iso: string;
@@ -8,54 +9,58 @@ export type CalendarDay = {
   isWeekend: boolean;
 };
 
+function parts(iso: string): [number, number, number] {
+  const [y, m, d] = iso.split("-").map(Number);
+  return [y, m - 1, d];
+}
+
+function mondayOffset(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}
+
+/** The ISO date of the Monday of the Monday-to-Sunday week containing `iso`. */
+export function mondayOfWeek(iso: string): string {
+  const [y, m, d] = parts(iso);
+  return addDays(iso, -mondayOffset(new Date(y, m, d)));
+}
+
+function toDay(iso: string, inMonth: boolean): CalendarDay {
+  const [y, m, d] = parts(iso);
+  const dow = new Date(y, m, d).getDay();
+  return { iso, dayOfMonth: d, inMonth, isWeekend: dow === 0 || dow === 6 };
+}
+
 /**
- * A month as whole weeks, Sunday-first, including the adjacent-month days that
- * fill the first and last rows. Always 6 rows, so the grid doesn't change
- * height as you page through months.
+ * A month as whole Monday-first weeks, including the adjacent-month days that
+ * fill the first and last rows. Only the rows the month needs: 28, 35 or 42 days.
  */
 export function monthGrid(year: number, month: number): CalendarDay[] {
   const first = new Date(year, month, 1);
-  const start = new Date(year, month, 1 - first.getDay());
+  const lead = mondayOffset(first);
+  const inMonthDays = new Date(year, month + 1, 0).getDate();
+  const total = Math.ceil((lead + inMonthDays) / 7) * 7;
+  const startIso = toISODate(new Date(year, month, 1 - lead));
 
-  return Array.from({ length: 42 }, (_, i) => {
-    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const day = date.getDay();
-    return {
-      iso: toISODate(date),
-      dayOfMonth: date.getDate(),
-      inMonth: date.getMonth() === month && date.getFullYear() === year,
-      isWeekend: day === 0 || day === 6,
-    };
+  return Array.from({ length: total }, (_, i) => {
+    const iso = addDays(startIso, i);
+    const [y, m] = parts(iso);
+    return toDay(iso, m === month && y === year);
   });
 }
 
 export function monthLabel(year: number, month: number): string {
-  return new Date(year, month, 1).toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  return fmtMonthYear(toISODate(new Date(year, month, 1)));
 }
 
-export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export type CalendarView = "day" | "week" | "month";
 export const CALENDAR_VIEWS: CalendarView[] = ["day", "week", "month"];
 
-/** The Sunday-first week containing `iso`, as seven whole days. */
+/** The Monday-to-Sunday week containing `iso`, as seven whole days. */
 export function weekGrid(iso: string): CalendarDay[] {
-  const anchor = new Date(`${iso}T00:00:00`);
-  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - anchor.getDay());
-
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const day = date.getDay();
-    return {
-      iso: toISODate(date),
-      dayOfMonth: date.getDate(),
-      inMonth: true,
-      isWeekend: day === 0 || day === 6,
-    };
-  });
+  const start = mondayOfWeek(iso);
+  return Array.from({ length: 7 }, (_, i) => toDay(addDays(start, i), true));
 }
 
 /** A single day, shaped like the other grids so day/week/month share one row type. */
@@ -88,22 +93,44 @@ export function shift(view: CalendarView, iso: string, by: number): string {
 
 /** The header label for the active view, anchored at `iso`. */
 export function viewLabel(view: CalendarView, iso: string): string {
-  const date = new Date(`${iso}T00:00:00`);
   if (view === "day") {
-    return date.toLocaleDateString(undefined, {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    const [y] = iso.split("-");
+    return `${fmtWeekday(iso)} ${fmtDayLong(iso)} ${y}`;
   }
   if (view === "week") {
     const days = weekGrid(iso);
-    const startDate = new Date(`${days[0].iso}T00:00:00`);
-    const endDate = new Date(`${days[6].iso}T00:00:00`);
-    const from = startDate.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const to = endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    return `${from} – ${to}`;
+    return fmtRange(days[0].iso, days[6].iso);
   }
-  return monthLabel(date.getFullYear(), date.getMonth());
+  const [y, m] = parts(iso);
+  return monthLabel(y, m);
+}
+
+/** ISO 8601 week number (weeks start Monday; week 1 holds the year's first Thursday). */
+export function isoWeekNumber(iso: string): number {
+  const [y, m, d] = parts(iso);
+  const date = new Date(y, m, d);
+  // Move to the Thursday of this ISO week; its year is the ISO year.
+  const thursday = new Date(y, m, d - mondayOffset(date) + 3);
+  const jan1 = new Date(thursday.getFullYear(), 0, 1);
+  const dayOfYear = Math.round(
+    (Date.UTC(thursday.getFullYear(), thursday.getMonth(), thursday.getDate()) -
+      Date.UTC(jan1.getFullYear(), 0, 1)) /
+      86_400_000,
+  );
+  return Math.floor(dayOfYear / 7) + 1;
+}
+
+/** The two-tone H1 for a view: `title` in full ink, `dim` (the year) in the second tone. */
+export function viewTitle(view: CalendarView, iso: string): { title: string; dim: string } {
+  if (view !== "week") {
+    const [y, m] = parts(iso);
+    return { title: MONTHS_LONG[m], dim: String(y) };
+  }
+  const days = weekGrid(iso);
+  const [y1, m1] = parts(days[0].iso);
+  const [y2, m2] = parts(days[6].iso);
+  return {
+    title: m1 === m2 ? MONTHS_LONG[m2] : `${MONTHS_LONG[m1]} to ${MONTHS_LONG[m2]}`,
+    dim: y1 === y2 ? String(y2) : `${y1} to ${y2}`,
+  };
 }

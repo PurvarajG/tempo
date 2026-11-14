@@ -1,33 +1,169 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ClipboardEvent, KeyboardEvent } from "react";
+import Icon from "@/components/ui/Icon";
+import BrainDumpPreview, { chipClass, parsedChips } from "@/components/BrainDumpPreview";
+import type { Chip } from "@/components/BrainDumpPreview";
+import { fmtDate } from "@/lib/format";
+import { parseQuickAdd, toISODate } from "@/lib/parse";
 import { useTasks } from "@/lib/store-context";
+import { withSettingsDefaults } from "@/lib/store-context/use-tracking-config";
 
 export default function QuickAdd({
   id,
   projectId,
   autoFocus = true,
+  defaultScheduled,
+  onSaved,
+  onEscape,
+  saveOnWindowBlur = false,
+  dumpPreview = true,
+  placeholder,
 }: {
   id?: string;
   projectId?: string;
   autoFocus?: boolean;
+  /** Placeholder text for the field. Undefined keeps the default. */
+  placeholder?: string;
+  /** Day for a task typed with no day token. Undefined means today, null means the inbox. */
+  defaultScheduled?: string | null;
+  /** Called after a task was added. `stay` is true for Shift+Enter. */
+  onSaved?: (info: { stay: boolean }) => void;
+  /** Called on Esc in the field, and on window blur with nothing typed. */
+  onEscape?: () => void;
+  /** When the window loses focus: save non-empty text, or call onEscape when empty. */
+  saveOnWindowBlur?: boolean;
+  /** False keeps a multi-line paste in the field instead of opening the brain dump preview. */
+  dumpPreview?: boolean;
 }) {
-  const { addTask } = useTasks();
+  const { addTask, addTasks, trashTask, offerUndo, dismissUndo, projects, settings } = useTasks();
+  const dateOrder = withSettingsDefaults(settings).dateOrder;
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [dropped, setDropped] = useState<string | null>(null);
+  const [dump, setDump] = useState<string[] | null>(null);
+  const busyRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  async function submit() {
-    const raw = text.trim();
-    if (!raw || busy) return;
+  const today = toISODate(new Date());
+  const fallbackDay = defaultScheduled === undefined ? today : defaultScheduled;
+
+  function chipsFor(raw: string): { chips: Chip[]; title: string; newProject: string | null } {
+    const p = parseQuickAdd(raw, new Date(), { dateOrder });
+    const { chips, unknownProject } = parsedChips(p, projects);
+    const newProject = unknownProject && dropped !== unknownProject.toLowerCase() ? unknownProject : null;
+    return { chips, title: p.title, newProject };
+  }
+
+  const live = useMemo(
+    () => (text.trim() ? chipsFor(text) : { chips: [] as Chip[], title: "", newProject: null }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [text, projects, dropped, dateOrder],
+  );
+
+  const blurRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    blurRef.current = () => {
+      if (text.trim()) void submit(false);
+      else onEscape?.();
+    };
+  });
+  useEffect(() => {
+    if (!saveOnWindowBlur) return;
+    const onBlur = () => blurRef.current();
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, [saveOnWindowBlur]);
+
+  function dropNewProject() {
+    if (!live.newProject) return;
+    setDropped(live.newProject.toLowerCase());
+    inputRef.current?.focus();
+  }
+
+  async function submit(stay = false) {
+    let raw = text.trim();
+    if (!raw || busyRef.current) return;
+    if (dropped) {
+      const tag = `#${dropped}`;
+      const words = raw.split(/\s+/);
+      const at = words.findIndex((w) => w.toLowerCase() === tag);
+      if (at >= 0) words.splice(at, 1);
+      raw = words.join(" ");
+      if (!raw) return;
+    }
+    const parsed = parseQuickAdd(raw, new Date(), { dateOrder });
     setText("");
-    setBusy(true);
+    setDropped(null);
+    busyRef.current = true;
     try {
-      await addTask(raw, { projectId });
+      const created = await addTask(raw, {
+        projectId,
+        scheduled: parsed.scheduled === undefined ? fallbackDay : undefined,
+      });
+      if (created && created.scheduled !== today) {
+        const where = created.scheduled ? fmtDate(created.scheduled, today) : "Inbox";
+        offerUndo(`Added to ${where}`, async () => {
+          await trashTask(created.id);
+          dismissUndo();
+        });
+      }
+      if (created) onSaved?.({ stay });
     } catch {
       setText(raw);
     } finally {
-      setBusy(false);
+      busyRef.current = false;
+      inputRef.current?.focus();
     }
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void submit(e.shiftKey);
+    } else if (e.key === "Escape" && onEscape) {
+      e.preventDefault();
+      onEscape();
+    } else if (
+      e.key === "Backspace" &&
+      live.newProject &&
+      e.currentTarget.selectionStart === 0 &&
+      e.currentTarget.selectionEnd === 0
+    ) {
+      e.preventDefault();
+      dropNewProject();
+    }
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLInputElement>) {
+    const lines = e.clipboardData
+      .getData("text")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length < 2 || !dumpPreview) return;
+    e.preventDefault();
+    setDump(lines);
+  }
+
+  async function addDump() {
+    const lines = dump;
+    if (!lines || busyRef.current) return;
+    busyRef.current = true;
+    setDump(null);
+    try {
+      await addTasks(lines, { defaultScheduled: fallbackDay, projectId });
+    } catch {
+      setDump(lines);
+    } finally {
+      busyRef.current = false;
+      inputRef.current?.focus();
+    }
+  }
+
+  function cancelDump() {
+    setDump(null);
+    inputRef.current?.focus();
   }
 
   return (
@@ -37,32 +173,56 @@ export default function QuickAdd({
         void submit();
       }}
     >
-      <div className="relative">
+      <div className="composer-frame flex h-13 items-center gap-3 rounded-composer bg-surface pl-4 pr-2">
+        <Icon name="plus" size={18} className="text-ink-3" />
         <input
+          ref={inputRef}
           id={id}
           autoFocus={autoFocus}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          placeholder="What needs doing?"
-          className="h-14 w-full rounded-xl border border-border bg-card pl-5 pr-28 text-[15px] shadow-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-accent/40 focus:ring-2 focus:ring-accent/20"
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          placeholder={placeholder ?? "Add a task. Try: Call printer 20m tomorrow #MSM26"}
+          aria-label="New task"
+          className="min-w-0 flex-1 bg-transparent text-body text-ink placeholder:text-ink-3"
         />
-        <button
-          type="submit"
-          disabled={!text.trim()}
-          className="absolute right-2 top-1/2 h-10 -translate-y-1/2 rounded-lg bg-gradient-to-r from-accent to-accent-secondary px-4 text-sm font-medium text-accent-foreground shadow-sm transition-all duration-200 hover:shadow-accent hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-0"
-        >
-          Add
-        </button>
+        {(live.chips.length > 0 || live.newProject) && (
+          <span data-part="live-chips" className="flex min-w-0 shrink items-center justify-end gap-1 overflow-hidden whitespace-nowrap">
+            {live.chips.map((c) => (
+              <span key={c.key} className={chipClass()}>
+                {c.text}
+              </span>
+            ))}
+            {live.newProject && (
+              <button
+                type="button"
+                aria-label="Remove new project name"
+                title="Remove new project name"
+                onClick={dropNewProject}
+                onKeyDown={(e) => {
+                  if (e.key === "Backspace" || e.key === "Delete") {
+                    e.preventDefault();
+                    dropNewProject();
+                  }
+                }}
+                className={`${chipClass("accent")} cursor-pointer`}
+              >
+                New project: {live.newProject}
+              </button>
+            )}
+          </span>
+        )}
+        <span data-part="hint-chips" aria-hidden="true" className="flex shrink-0 items-center gap-1 whitespace-nowrap">
+          {["20m", "p1", "#project"].map((hint) => (
+            <span key={hint} className={chipClass()}>
+              {hint}
+            </span>
+          ))}
+        </span>
       </div>
-      <p className="mt-2.5 px-1 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-        30m · p1 · thu · 3pm · weekly · #project · @tag
-      </p>
+
+      {dump && <BrainDumpPreview lines={dump} onAdd={() => void addDump()} onCancel={cancelDump} />}
     </form>
   );
 }

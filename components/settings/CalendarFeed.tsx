@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
 /**
  * The subscribe URL is built in the browser rather than on the server: the app
@@ -40,60 +42,68 @@ export default function CalendarFeed({ token }: { token: string | null }) {
     return () => clearTimeout(timer);
   }, [copied]);
 
+  const sub = <p className="pb-1 pt-4 text-meta text-ink-3">Subscribe to your tasks</p>;
+
   if (!token) {
     return (
-      <div className="rounded-xl border border-dashed border-border px-6 py-8 text-sm text-muted-foreground">
-        <p className="text-foreground">The calendar feed isn&apos;t set up yet.</p>
-        <p className="mt-3">
+      <div className="px-3 pb-3">
+        {sub}
+        <p className="mt-2 text-secondary text-ink">The calendar feed isn&apos;t set up yet.</p>
+        <p className="mt-3 text-secondary text-ink-3">
           In the desktop app, open{" "}
-          <span className="text-foreground">File → Calendar Integration Settings…</span> — a token
-          is generated for you on first launch; restart Tempo if the file was empty. Running from
-          source instead, set{" "}
-          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">CALENDAR_FEED_SECRET</code>{" "}
-          to a long random string in your environment and restart.
+          <span className="text-ink">File, Calendar Integration Settings</span>. A token is
+          generated for you on first launch; restart Doem if the file was empty. Running from
+          source instead, set <code className="font-mono text-meta">CALENDAR_FEED_SECRET</code> to
+          a long random string in your environment and restart.
         </p>
-        <p className="mt-3">
-          Treat it like a password — it&apos;s the only thing standing between your task list and
-          anyone who guesses the URL.
+        <p className="mt-3 text-secondary text-ink-3">
+          Treat it like a password. It is the only thing standing between your task list and anyone
+          who guesses the URL.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-border px-6 py-6">
-      <p className="text-sm text-muted-foreground">
+    <div className="px-3 pb-3">
+      {sub}
+      <p className="mt-2 text-secondary text-ink-3">
         Add this URL in Apple Calendar under{" "}
-        <span className="text-foreground">File → New Calendar Subscription</span>, or open it on
-        your phone. Your open tasks appear as events; completed ones drop off at the next refresh.
+        <span className="text-ink">File, New Calendar Subscription</span>, or open it on your
+        phone. Your open tasks appear as events; completed ones drop off at the next refresh.
       </p>
 
-      <div className="mt-4 flex gap-2">
-        <input
+      <div className="mt-3 flex items-center gap-2">
+        <Input
+          variant="field"
           readOnly
           value={url}
+          aria-label="Calendar feed URL"
           onFocus={(e) => e.currentTarget.select()}
-          className="h-9 flex-1 rounded-lg border border-border bg-card px-3 font-mono text-xs outline-none focus:border-accent/40"
+          wrapperClassName="min-w-0 flex-1"
+          className="font-mono text-meta"
         />
-        <button
+        <Button
+          variant="chip"
+          size="sm"
+          icon={copied ? "check" : undefined}
           onClick={async () => {
             await navigator.clipboard?.writeText(url);
             setCopied(true);
           }}
-          className="h-9 shrink-0 rounded-lg border border-border px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           {copied ? "Copied" : "Copy"}
-        </button>
+        </Button>
       </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        In the desktop app the feed is served by Tempo itself, so Apple Calendar only refreshes
-        while Tempo is open — close it and you keep seeing the last events it fetched.
+      <p className="mt-3 text-meta text-ink-3">
+        In the desktop app the feed is served by Doem itself, so Apple Calendar only refreshes
+        while Doem is open. Close it and you keep seeing the last events it fetched.
       </p>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        Anyone with this link can read your tasks — it carries the feed token. Rotate{" "}
-        <code className="font-mono">CALENDAR_FEED_SECRET</code> to revoke it.
+      <p className="mt-3 text-meta text-ink-3">
+        Anyone with this link can read your tasks, because it carries the feed token. Rotate{" "}
+        <code className="font-mono text-meta">CALENDAR_FEED_SECRET</code> to revoke it.
       </p>
     </div>
   );

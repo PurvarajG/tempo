@@ -1,6 +1,6 @@
 # Vercel uploads the working directory rather than the git tree, so paths
 # that .gitignore already excludes still have to be listed here. The Electron
-# packager output is the one that matters: a packed Tempo.app is ~750MB and
+# packager output is the one that matters: a packed Doem.app is ~750MB and
 # blows straight past Vercel's 100MB per-file limit, failing the deploy.
 /dist-electron
 /backups

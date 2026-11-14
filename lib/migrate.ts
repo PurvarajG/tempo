@@ -40,6 +40,7 @@ export async function runMigrations(driver: Driver): Promise<void> {
 }
 
 export async function backfill(tx: Tx): Promise<void> {
+  await relaxTaskScheduledNotNull(tx);
   await backfillProjectStages(tx);
   await backfillTaskStages(tx);
   await seedGeneralNote(tx);
@@ -49,6 +50,24 @@ export async function backfill(tx: Tx): Promise<void> {
   await migrateTimeEntriesToSegments(tx);
   await backfillPinnedActivities(tx);
   await backfillCollapsedModules(tx);
+  await backfillStageEnteredAt(tx);
+  await migrateQuickTodosToInbox(tx);
+}
+
+/**
+ * Relaxes a constraint (the plan's named 2.2 change: Task.scheduled becomes
+ * nullable so an undated task can live in the inbox). Drops no data. Guarded by
+ * information_schema so it only alters while the column is still NOT NULL, and
+ * runs first so later steps may insert null-scheduled rows.
+ */
+async function relaxTaskScheduledNotNull(tx: Tx): Promise<void> {
+  const col = await tx.query<{ is_nullable: string }>(
+    `select is_nullable from information_schema.columns
+      where table_schema = current_schema()
+        and table_name = 'tasks' and column_name = 'scheduled'`,
+  );
+  if (col.length === 0 || col[0].is_nullable !== "NO") return;
+  await tx.query(`alter table tasks alter column scheduled drop not null`);
 }
 
 /** Every project needs its four default stages — but only if it has none. */
@@ -231,4 +250,53 @@ async function migrateTimeEntriesToSegments(tx: Tx): Promise<void> {
       where not exists (select 1 from segments s where s.id = t.id)`,
     [FOCUS_WORK_CATEGORY_ID],
   );
+}
+
+/**
+ * `stage_entered_at` is new, so every already-staged task has it null. The
+ * best available answer for "when did it enter its stage" is when it was
+ * created. Only null rows are touched, so a value the store has since set is
+ * never overwritten and re-running is a no-op.
+ */
+async function backfillStageEnteredAt(tx: Tx): Promise<void> {
+  await tx.query(
+    `update tasks set stage_entered_at = created_at
+      where stage_entered_at is null and stage_id is not null`,
+  );
+}
+
+/**
+ * Copies each undone quick_todos row into tasks as an undated inbox task,
+ * once. Guarded by `tracking_settings.quick_todos_migrated` (a flag, not a
+ * "does it exist already?" check, so a user who later deletes the inbox copy
+ * never gets it back). The quick_todos table and its rows are left alone:
+ * the quick list keeps working until it is retired. Done quick todos are not
+ * copied. New tasks are appended after the current max sort_order in quick
+ * list order and keep the quick todo's created_at.
+ */
+async function migrateQuickTodosToInbox(tx: Tx): Promise<void> {
+  const flag = await tx.query<{ quick_todos_migrated: boolean }>(
+    `select quick_todos_migrated from tracking_settings where id = $1`,
+    [TRACKING_SETTINGS_ID],
+  );
+  if (flag.length === 0 || flag[0].quick_todos_migrated) return;
+
+  const todos = await tx.query<{ title: string; created_at: string | Date }>(
+    `select title, created_at from quick_todos
+      where not done order by sort_order asc, created_at asc`,
+  );
+  const max = await tx.query<{ n: number }>(`select coalesce(max(sort_order), -1)::int as n from tasks`);
+  let order = max[0].n + 1;
+
+  for (const todo of todos) {
+    await tx.query(
+      `insert into tasks (id, title, scheduled, minutes, priority, status, tags, sort_order, created_at)
+       values ($1, $2, null, 30, 0, 'open', '{}', $3, $4)`,
+      [randomUUID(), todo.title, order++, todo.created_at],
+    );
+  }
+
+  await tx.query(`update tracking_settings set quick_todos_migrated = true where id = $1`, [
+    TRACKING_SETTINGS_ID,
+  ]);
 }

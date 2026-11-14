@@ -4,8 +4,29 @@
     {
       "name": "taskmanager",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 4700
+    },
+    {
+      "name": "doem-v2-lab",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "LAB_MODE=1 PGLITE_DIR=.data/v2-lab npx next dev -p 4700"
+      ],
+      "port": 4700
+    },
+    {
+      "name": "doem-release-check",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PGLITE_DIR=.data/release-check npx next dev -p 4700"
+      ],
+      "port": 4700
     }
   ]
 }

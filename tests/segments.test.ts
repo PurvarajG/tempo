@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test, { after, before } from "node:test";
 import { SegmentOverlap, TimerConflict } from "../lib/store/segments";
 import { freshDb, type TestDb } from "./helpers/db";
@@ -173,4 +174,101 @@ test("listSegments returns segments overlapping the given range, ordered by star
   const segs = await db.store.listSegments("2026-03-10T00:00:00.000Z", "2026-03-11T00:00:00.000Z");
   assert.equal(segs.length, 2);
   assert.ok(segs[0].startedAt < segs[1].startedAt);
+});
+
+const SPLIT_SETTINGS = {
+  dayStartHour: 4,
+  wakingStartHour: 7,
+  wakingEndHour: 23,
+  minGapMinutes: 10,
+  moduleOrder: [],
+  hiddenModules: [],
+  collapsedModules: [],
+  hiddenNavItems: [],
+  updatedAt: new Date().toISOString(),
+};
+
+test("splitSegmentAt splits a stopped segment into two contiguous rows", async () => {
+  const seg = await db.store.addManualSegment({
+    startedAt: new Date(2020, 2, 10, 10, 0).toISOString(),
+    endedAt: new Date(2020, 2, 10, 12, 0).toISOString(),
+    categoryId,
+    activityId,
+    note: "deep work",
+  });
+  const at = new Date(2020, 2, 10, 10, 45).toISOString();
+  const res = await db.store.splitSegmentAt(seg.id, at);
+  assert.ok(res);
+  assert.equal(res.before.id, seg.id);
+  assert.notEqual(res.after.id, seg.id);
+  assert.equal(new Date(res.before.startedAt).getTime(), new Date(seg.startedAt).getTime());
+  assert.equal(new Date(res.before.endedAt!).getTime(), new Date(at).getTime());
+  assert.equal(new Date(res.after.startedAt).getTime(), new Date(at).getTime());
+  assert.equal(new Date(res.after.endedAt!).getTime(), new Date(seg.endedAt!).getTime());
+  assert.equal(res.after.categoryId, categoryId);
+  assert.equal(res.after.activityId, activityId);
+  assert.equal(res.after.note, "deep work");
+  assert.equal(res.after.source, seg.source);
+  const minutes = (s: { startedAt: string; endedAt?: string }) =>
+    (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()) / 60_000;
+  assert.equal(minutes(res.before) + minutes(res.after), 120);
+});
+
+test("splitSegmentAt on a running segment moves the running state to the second half", async () => {
+  const startedAt = new Date(Date.now() - 2 * 3600_000).toISOString();
+  const [row] = await db.query<{ id: string }>(
+    `insert into segments (id, started_at, category_id, source, running_lock)
+     values ($1, $2, $3, 'timer', true) returning id`,
+    [randomUUID(), startedAt, categoryId],
+  );
+  const at = new Date(Date.now() - 3600_000).toISOString();
+  const res = await db.store.splitSegmentAt(row.id, at);
+  assert.ok(res);
+  assert.ok(res.before.endedAt);
+  assert.equal(res.after.endedAt, undefined);
+  const running = await db.store.runningSegment();
+  assert.equal(running?.id, res.after.id);
+  await assert.rejects(() => db.store.startSegment({ categoryId }), TimerConflict);
+  await db.store.stopSegment();
+  assert.equal(await db.store.runningSegment(), null);
+});
+
+test("splitSegmentAt rejects a point outside the segment and returns null for an unknown id", async () => {
+  const seg = await db.store.addManualSegment({
+    startedAt: new Date(2020, 2, 11, 10, 0).toISOString(),
+    endedAt: new Date(2020, 2, 11, 11, 0).toISOString(),
+    categoryId,
+  });
+  for (const bad of [
+    seg.startedAt,
+    seg.endedAt!,
+    new Date(2020, 2, 11, 9, 0).toISOString(),
+    new Date(2020, 2, 11, 12, 0).toISOString(),
+  ]) {
+    await assert.rejects(() => db.store.splitSegmentAt(seg.id, bad), SegmentOverlap);
+  }
+  assert.equal(await db.store.splitSegmentAt("00000000-0000-4000-8000-000000000000", seg.startedAt), null);
+
+  const startedAt = new Date(Date.now() - 3600_000).toISOString();
+  const [run] = await db.query<{ id: string }>(
+    `insert into segments (id, started_at, category_id, source, running_lock)
+     values ($1, $2, $3, 'timer', true) returning id`,
+    [randomUUID(), startedAt, categoryId],
+  );
+  await assert.rejects(
+    () => db.store.splitSegmentAt(run.id, new Date(Date.now() + 3600_000).toISOString()),
+    SegmentOverlap,
+  );
+  await db.store.stopSegment();
+});
+
+test("splitSegmentAt leaves findGaps unchanged", async () => {
+  const day = "2020-03-12";
+  const d = (h: number, m = 0) => new Date(2020, 2, 12, h, m).toISOString();
+  await db.store.addManualSegment({ startedAt: d(8), endedAt: d(9), categoryId });
+  const seg = await db.store.addManualSegment({ startedAt: d(11), endedAt: d(13), categoryId });
+  const before = await db.store.findGaps(day, SPLIT_SETTINGS);
+  assert.ok(before.length > 0);
+  assert.ok(await db.store.splitSegmentAt(seg.id, d(12)));
+  assert.deepEqual(await db.store.findGaps(day, SPLIT_SETTINGS), before);
 });

@@ -1,69 +1,93 @@
 "use client";
 
 import { useTasks } from "@/lib/store-context";
-import { labelClass } from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
+import SettingRow, { SETTING_SELECT } from "@/components/settings/SettingRow";
 
-/** Day start hour, waking window, minimum gap — the boundaries every module's math reads. */
+/** Day start hour, awake window, shortest gap: the boundaries every module's math reads. */
 export default function GapRulesSection() {
   const { settings, patchSettings } = useTasks();
   if (!settings) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <HourField
+    <ul className="task-list px-2 pb-2">
+      <HourRow
+        id="gap-day-start"
         label="Day starts at"
+        description="Time after this counts toward the next day."
         value={settings.dayStartHour}
         onChange={(dayStartHour) => patchSettings({ dayStartHour })}
       />
-      <HourField
-        label="Waking starts"
+      <HourRow
+        id="gap-awake-from"
+        label="Awake from"
         value={settings.wakingStartHour}
         onChange={(wakingStartHour) => patchSettings({ wakingStartHour })}
       />
-      <HourField
-        label="Waking ends"
+      <HourRow
+        id="gap-awake-until"
+        label="Awake until"
+        description="Gaps are only looked for in this window."
         value={settings.wakingEndHour}
         onChange={(wakingEndHour) => patchSettings({ wakingEndHour })}
       />
-      <div className="space-y-1.5">
-        <label htmlFor="min-gap" className={labelClass}>
-          Min gap (min)
-        </label>
-        <input
-          id="min-gap"
-          type="number"
-          min={1}
-          value={settings.minGapMinutes}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (n > 0) patchSettings({ minGapMinutes: n });
-          }}
-          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent/40"
-        />
-      </div>
-    </div>
+      <SettingRow
+        label="Shortest gap"
+        description="Shorter gaps are not shown."
+        htmlFor="gap-min"
+        control={
+          <Input
+            id="gap-min"
+            type="number"
+            min={1}
+            variant="field"
+            wrapperClassName="w-28 font-mono"
+            trailing="min"
+            value={settings.minGapMinutes}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (n > 0) patchSettings({ minGapMinutes: n });
+            }}
+          />
+        }
+      />
+    </ul>
   );
 }
 
-function HourField({ label, value, onChange }: { label: string; value: number; onChange: (hour: number) => void }) {
-  const id = `hour-${label.replace(/\s+/g, "-").toLowerCase()}`;
+function HourRow({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  value: number;
+  onChange: (hour: number) => void;
+}) {
+  // fmtTime gives 24-hour output such as "18:00", so the "HH:00" label matches it.
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className={labelClass}>
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent/40"
-      >
-        {Array.from({ length: 24 }, (_, h) => (
-          <option key={h} value={h}>
-            {String(h).padStart(2, "0")}:00
-          </option>
-        ))}
-      </select>
-    </div>
+    <SettingRow
+      label={label}
+      description={description}
+      htmlFor={id}
+      control={
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className={SETTING_SELECT}
+        >
+          {Array.from({ length: 24 }, (_, h) => (
+            <option key={h} value={h}>
+              {String(h).padStart(2, "0")}:00
+            </option>
+          ))}
+        </select>
+      }
+    />
   );
 }

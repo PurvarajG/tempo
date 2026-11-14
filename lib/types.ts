@@ -9,9 +9,12 @@ export type Priority = 0 | 1 | 2 | 3;
 export type Status = "open" | "done" | "trashed";
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly";
+export type RecurrenceFrom = "schedule" | "done";
 export type Recurrence = {
   freq: RecurrenceFreq;
   interval: number;
+  /** Absent means "schedule". */
+  from?: RecurrenceFrom;
 };
 
 export type Subtask = {
@@ -37,6 +40,7 @@ export type ProjectStage = {
   kind: StageKind;
   sortOrder: number;
   createdAt: string;
+  wipLimit?: number | null;
 };
 
 export type StageInput = {
@@ -61,8 +65,11 @@ export type Task = {
   stageId?: string;
   boardOrder: number;
   tags: string[];
-  /** Local YYYY-MM-DD: the day you intend to *do* this, not a deadline. */
-  scheduled: string;
+  /**
+   * Local YYYY-MM-DD: the day you intend to *do* this, not a deadline.
+   * null = inbox, no date; undated tasks are excluded from every date view.
+   */
+  scheduled: string | null;
   /** Optional local HH:MM (24h). Never set alongside `isComplex`. */
   dueTime?: string;
   minutes: Duration;
@@ -78,6 +85,15 @@ export type Task = {
   completedAt?: string;
   deletedAt?: string;
   subtasks: Subtask[];
+  /** YYYY-MM-DD: one of that day's committed tasks. */
+  committedOn?: string;
+  /** Hidden until this YYYY-MM-DD. */
+  startOn?: string;
+  expiresOn?: string;
+  /** ISO timestamp of the last stage change. */
+  stageEnteredAt?: string;
+  /** Ids of linked, non-trashed blocker tasks. Hydrate always sets it. */
+  blockedBy?: string[];
 };
 
 export type TaskInput = {
@@ -86,11 +102,15 @@ export type TaskInput = {
   projectId?: string;
   stageId?: string;
   tags?: string[];
-  scheduled: string;
+  scheduled: string | null;
   dueTime?: string;
   minutes: Duration;
   priority: Priority;
   recurrence?: Recurrence;
+  /** null in a patch clears the column. */
+  committedOn?: string | null;
+  startOn?: string | null;
+  expiresOn?: string | null;
   /** Defaults to false on create. */
   isComplex?: boolean;
   finishDate?: string;
@@ -265,8 +285,55 @@ export type TrackingSettings = {
   hiddenModules: string[];
   collapsedModules: string[];
   hiddenNavItems: string[];
+  todayCap?: number;
+  dockBadge?: DockBadge;
+  captureShortcut?: string;
+  nudgeMinutes?: number | null;
+  wrapHour?: number;
+  /** 0 = Sunday. */
+  weeklyResetDay?: number;
+  claudeAwareness?: boolean;
+  dateOrder?: DateOrder;
   updatedAt: string;
 };
+
+export type DockBadge = "today" | "none";
+export type DateOrder = "dmy" | "mdy";
+
+export const SETTINGS_DEFAULTS: Required<
+  Pick<
+    TrackingSettings,
+    | "todayCap"
+    | "dockBadge"
+    | "captureShortcut"
+    | "nudgeMinutes"
+    | "wrapHour"
+    | "weeklyResetDay"
+    | "claudeAwareness"
+    | "dateOrder"
+  >
+> = {
+  todayCap: 3,
+  dockBadge: "today",
+  captureShortcut: "Control+Alt+Space",
+  nudgeMinutes: null,
+  wrapHour: 17,
+  weeklyResetDay: 0,
+  claudeAwareness: true,
+  dateOrder: "dmy",
+};
+
+export const TODAY_CAP_OPTIONS = [1, 3, 5] as const;
+
+export type DayEnergy = 1 | 2 | 3;
+export type DayReview = {
+  day: string;
+  energy: DayEnergy | null;
+  note: string | null;
+  updatedAt: string;
+};
+
+export type TaskLink = { blockerId: string; blockedId: string };
 
 /** There is exactly one tracking-settings row, and this fixed uuid is its primary key. */
 export const TRACKING_SETTINGS_ID = "00000000-0000-0000-0000-000000000001";

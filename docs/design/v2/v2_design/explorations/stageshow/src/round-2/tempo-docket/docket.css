@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
+
+.tm-dk .ss-stage {
+  --ss-font: 'Hanken Grotesk', system-ui, sans-serif;
+  --dk-mono: 'Geist Mono', ui-monospace, monospace;
+  --dk-body: oklch(97.4% 0.003 160);
+  --dk-card: oklch(100% 0 0);
+  --dk-ink: oklch(19% 0.01 160);
+  --dk-ink-2: oklch(38% 0.01 160);
+  --dk-muted: oklch(50% 0.01 160);
+  --dk-rule: oklch(90.5% 0.005 160);
+  --dk-block: oklch(91% 0.005 160);
+  --dk-green: oklch(45% 0.095 160);
+  --dk-green-soft: oklch(93% 0.035 160);
+  --dk-on-green: oklch(99% 0.01 160);
+  --dk-sel: oklch(100% 0 0);
+  --dk-sel-edge: 0 0 0 1px oklch(88% 0.006 160), 0 6px 16px -8px oklch(20% 0.02 160 / 0.22);
+  --p-studio: oklch(50% 0.09 255); --p-tempo: oklch(50% 0.09 160); --p-personal: oklch(50% 0.09 340); --p-run: oklch(52% 0.08 110); --p-home: oklch(50% 0.07 210);
+  --tb-ink: var(--dk-ink); --tb-muted: var(--dk-ink-2); --tb-rule: var(--dk-rule);
+  --tb-seg-bg: oklch(93.5% 0.004 160); --tb-seg-on: var(--dk-card); --tb-seg-on-ink: var(--dk-ink);
+  --tb-seg-on-shadow: 0 1px 2px oklch(20% 0.02 160 / 0.14); --tb-mono: var(--dk-mono);
+  --ss-surface: var(--dk-body); --ss-canvas: var(--dk-body); --ss-chrome: var(--dk-body);
+  --ss-well: oklch(93% 0.004 160); --ss-line: var(--dk-rule);
+  --ss-text-strong: var(--dk-ink); --ss-text: var(--dk-ink-2);
+  overflow: hidden; background: var(--ss-well); font-family: var(--ss-font);
+}
+.tm-dk .ss-stage[data-theme='dark'] {
+  --dk-body: oklch(15.5% 0.006 160);
+  --dk-card: oklch(19.5% 0.006 160);
+  --dk-ink: oklch(94% 0.005 160);
+  --dk-ink-2: oklch(80% 0.006 160);
+  --dk-muted: oklch(66% 0.008 160);
+  --dk-rule: oklch(26% 0.006 160);
+  --dk-block: oklch(26% 0.006 160);
+  --dk-green: oklch(72% 0.12 160);
+  --dk-green-soft: oklch(30% 0.05 160);
+  --dk-on-green: oklch(15% 0.03 160);
+  --dk-sel: oklch(21.5% 0.007 160);
+  --dk-sel-edge: 0 0 0 1px oklch(30% 0.008 160);
+  --p-studio: oklch(72% 0.09 255); --p-tempo: oklch(72% 0.1 160); --p-personal: oklch(72% 0.09 340); --p-run: oklch(74% 0.09 110); --p-home: oklch(72% 0.07 210);
+  --tb-seg-bg: oklch(21% 0.006 160); --tb-seg-on: oklch(30% 0.007 160);
+  --ss-well: oklch(10.5% 0.004 160);
+}
+
+.tm-dk .dk-win { position: absolute; left: 48px; top: 44px; width: 944px; height: 760px; box-shadow: var(--ss-shadow-hero); }
+.tm-dk .dk-win .ss-window__bar { border-bottom: 1px solid var(--dk-rule); }
+.tm-dk .dk-win .ss-window__body { background: var(--dk-body); }
+.tm-dk .dk-muted { color: var(--dk-muted); font-weight: 400; }
+
+.tm-dk .dk-body { padding: 24px 40px 0; }
+.tm-dk .dk-capture { width: 680px; margin: 0 auto; }
+.tm-dk .dk-field { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 12px 0 16px; border-radius: 14px; background: var(--dk-card); box-shadow: 0 0 0 1px var(--dk-rule), 0 0 0 4px var(--dk-green-soft); }
+.tm-dk .dk-field__plus { flex: none; color: var(--dk-green); }
+.tm-dk .dk-field__text { flex: 1; display: flex; align-items: center; white-space: pre; font-size: 16px; color: var(--dk-ink); }
+.tm-dk .dk-tok { padding: 1px 4px; margin: 0 2px; border-radius: 4px; background: var(--dk-green-soft); color: var(--dk-ink); }
+.tm-dk .dk-caret { width: 1.5px; height: 20px; margin-left: 2px; background: var(--dk-green); }
+.tm-dk .dk-enter { flex: none; }
+.tm-dk .dk-parse { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-left: 16px; font-size: 13px; }
+.tm-dk .dk-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--dk-card); box-shadow: inset 0 0 0 1px var(--dk-rule); color: var(--dk-ink); }
+.tm-dk .dk-chip svg { color: var(--dk-green); }
+
+.tm-dk .dk-grid { display: grid; grid-template-columns: 1fr 256px; gap: 32px; margin-top: 32px; }
+.tm-dk .dk-group { display: flex; justify-content: space-between; align-items: baseline; padding: 0 12px 10px; font-size: 13px; font-weight: 600; color: var(--dk-ink); border-bottom: 1px solid var(--dk-rule); margin-bottom: 4px; }
+.tm-dk .dk-group--gap { margin-top: 22px; }
+.tm-dk .dk-row { display: grid; grid-template-columns: 36px 16px 1fr auto; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; font-size: 14px; }
+.tm-dk .dk-row[data-selected] { background: var(--dk-sel); box-shadow: var(--dk-sel-edge); }
+.tm-dk .dk-row__at { font: 400 12px var(--dk-mono); color: var(--dk-muted); }
+.tm-dk .dk-check { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--dk-muted); }
+.tm-dk .dk-row__title { color: var(--dk-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-dk .dk-row[data-selected] .dk-row__title { font-weight: 500; }
+.tm-dk .dk-row__meta { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--dk-muted); }
+.tm-dk .dk-row__mins { width: 28px; text-align: right; font-family: var(--dk-mono); }
+.tm-dk .dk-proj { display: inline-flex; align-items: center; gap: 6px; }
+.tm-dk .dk-proj::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.tm-dk .dk-proj--studio { --c: var(--p-studio); } .tm-dk .dk-proj--tempo { --c: var(--p-tempo); } .tm-dk .dk-proj--personal { --c: var(--p-personal); } .tm-dk .dk-proj--run { --c: var(--p-run); } .tm-dk .dk-proj--home { --c: var(--p-home); }
+.tm-dk .dk-row__act { display: flex; gap: 4px; }
+.tm-dk .dk-start { background: var(--dk-green); color: var(--dk-on-green); }
+
+.tm-dk .dk-day { min-height: 640px; padding: 16px 16px 0; border-radius: 14px 14px 0 0; background: var(--dk-card); box-shadow: 0 0 0 1px var(--dk-rule); }
+.tm-dk .dk-day__head { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--dk-ink); margin-bottom: 16px; }
+.tm-dk .dk-day__grid { position: relative; margin-left: 28px; }
+.tm-dk .dk-hour { position: absolute; left: -28px; right: 0; height: 0; border-top: 1px solid var(--dk-rule); }
+.tm-dk .dk-hour b { position: absolute; left: 0; top: -7px; font: 400 11px/1 var(--dk-mono); color: var(--dk-muted); }
+.tm-dk .dk-hour b { left: 0; transform: translateY(-50%); top: 0; background: var(--dk-card); padding-right: 6px; }
+.tm-dk .dk-blk { position: absolute; left: 8px; right: 0; display: flex; align-items: center; padding: 0 8px; border-radius: 5px; font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.tm-dk .dk-blk--done { background: var(--dk-block); color: var(--dk-muted); }
+.tm-dk .dk-blk--next { background: var(--dk-green); color: var(--dk-on-green); font-weight: 500; }
+.tm-dk .dk-blk--plan { background: var(--dk-card); box-shadow: inset 0 0 0 1px var(--dk-ink-2); color: var(--dk-ink); }
+.tm-dk .dk-free { position: absolute; left: 8px; right: 0; display: flex; align-items: flex-start; padding: 8px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--dk-rule); background: repeating-linear-gradient(135deg, transparent 0 6px, var(--dk-rule) 6px 7px); font-size: 11px; color: var(--dk-muted); }
+.tm-dk .dk-now { position: absolute; left: -4px; right: 0; height: 2px; margin-top: -1px; background: var(--dk-green); }
+.tm-dk .dk-now b { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); font: 500 11px/1 var(--dk-mono); color: var(--dk-green); background: var(--dk-card); padding: 2px 2px 2px 0; }

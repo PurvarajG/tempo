@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTasks } from "@/lib/store-context";
 import type { ProjectStage } from "@/lib/types";
-import { labelClass, selectClass } from "../ui/Field";
+import Button from "../ui/Button";
+import Dialog from "../ui/Dialog";
 
 /**
  * Removing a column can't proceed until its tasks have somewhere to go. The
@@ -25,80 +26,75 @@ export default function RemoveStageDialog({
   const { removeStage } = useTasks();
   const [destination, setDestination] = useState("");
   const [busy, setBusy] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
+  const noSiblings = siblings.length === 0;
   const needsDestination = taskCount > 0;
-  const canRemove = !needsDestination || destination !== "";
+  const canRemove = !noSiblings && (!needsDestination || destination !== "");
+
+  const description = noSiblings
+    ? "A board needs at least one lane."
+    : needsDestination
+      ? `${taskCount} ${taskCount === 1 ? "task needs" : "tasks need"} a new column first.`
+      : "This column is empty.";
+
+  async function remove() {
+    if (!canRemove || busy) return;
+    setBusy(true);
+    try {
+      await removeStage(stage.id, destination || siblings[0].id);
+      onRemoved(`${stage.name} column removed.`);
+      onClose();
+    } catch {
+      // The store has already surfaced the server's reason.
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Remove the ${stage.name} column`}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-    >
-      {/* Scrim stays a literal black overlay, not a token: it dims whatever is behind it
-         (page content in light OR dark theme), so it must be theme-invariant rather than
-         following --color-foreground/--color-background, which would invert its effect. */}
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden>
-        {/* See components/ui/SidePanel.tsx for why this spacer exists. */}
-        <div className="no-drag h-9" />
-      </div>
-      <div className="no-drag relative w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-xl">
-        <h2 className="font-display text-lg">Remove &ldquo;{stage.name}&rdquo;</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {needsDestination
-            ? `${taskCount} ${taskCount === 1 ? "task needs" : "tasks need"} a new column first.`
-            : "This column is empty."}
-        </p>
-
-        {needsDestination && (
-          <div className="mt-4 space-y-1.5">
-            <label htmlFor="stage-destination" className={labelClass}>
-              Move tasks to
-            </label>
-            <select
-              id="stage-destination"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Choose a column…</option>
-              {siblings.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="mt-5 flex items-center gap-2">
-          <button
+    <Dialog
+      open
+      onClose={onClose}
+      title={<>Remove &ldquo;{stage.name}&rdquo;</>}
+      description={description}
+      initialFocusRef={needsDestination && !noSiblings ? undefined : cancelRef}
+      actions={
+        <>
+          <Button ref={cancelRef} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            tone="danger"
             disabled={!canRemove || busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await removeStage(stage.id, destination || siblings[0].id);
-                onRemoved(`${stage.name} column removed.`);
-                onClose();
-              } catch {
-                // The store has already surfaced the server's reason.
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="min-h-11 rounded-lg bg-gradient-to-r from-accent to-accent-secondary px-3 py-2 text-sm font-medium text-accent-foreground transition-all hover:brightness-110 disabled:opacity-40 sm:min-h-9"
+            onClick={remove}
           >
             Remove column
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          </Button>
+        </>
+      }
+    >
+      {needsDestination && !noSiblings && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="stage-destination" className="text-meta font-medium text-ink-2">
+            Move tasks to
+          </label>
+          <select
+            id="stage-destination"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            className="h-10 w-full rounded-row bg-sunk px-3 text-body text-ink inset-ring-1 inset-ring-line-strong"
           >
-            Cancel
-          </button>
+            <option value="">Choose a column…</option>
+            {siblings.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   );
 }

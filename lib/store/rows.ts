@@ -4,6 +4,10 @@ import type {
   Activity,
   Category,
   CategoryKind,
+  DateOrder,
+  DayEnergy,
+  DayReview,
+  DockBadge,
   Duration,
   Priority,
   Project,
@@ -18,6 +22,7 @@ import type {
   Task,
   TrackingSettings,
 } from "../types";
+import { SETTINGS_DEFAULTS } from "../types";
 
 /** Every store module reads through this so it works inside or outside a transaction. */
 export type Q = Pick<Tx, "query">;
@@ -31,7 +36,7 @@ export type TaskRow = {
   stage_id: string | null;
   board_order: number;
   tags: string[];
-  scheduled: string;
+  scheduled: string | null;
   due_time: string | null;
   minutes: number;
   priority: number;
@@ -43,6 +48,10 @@ export type TaskRow = {
   created_at: string;
   completed_at: string | null;
   deleted_at: string | null;
+  committed_on?: unknown;
+  start_on?: unknown;
+  expires_on?: unknown;
+  stage_entered_at?: string | Date | null;
 };
 
 export type ProjectRow = {
@@ -62,6 +71,7 @@ export type StageRow = {
   kind: string;
   sort_order: number;
   created_at: string;
+  wip_limit?: number | null;
 };
 
 export type SubtaskRow = {
@@ -126,7 +136,22 @@ export type TrackingSettingsRow = {
   hidden_modules: string[];
   collapsed_modules: string[];
   hidden_nav_items: string[];
+  today_cap?: number | null;
+  dock_badge?: string | null;
+  capture_shortcut?: string | null;
+  nudge_minutes?: number | null;
+  wrap_hour?: number | null;
+  weekly_reset_day?: number | null;
+  claude_awareness?: boolean | null;
+  date_order?: string | null;
   updated_at: string;
+};
+
+export type DayReviewRow = {
+  day: unknown;
+  energy: number | null;
+  note: string | null;
+  updated_at: string | Date;
 };
 
 /** Normalize a database DATE value to a plain YYYY-MM-DD. */
@@ -159,6 +184,7 @@ export function rowToStage(r: StageRow): ProjectStage {
     kind: r.kind as StageKind,
     sortOrder: r.sort_order,
     createdAt: ts(r.created_at),
+    wipLimit: r.wip_limit ?? null,
   };
 }
 
@@ -172,7 +198,7 @@ export function rowToSubtask(r: SubtaskRow): Subtask {
   };
 }
 
-export function rowToTask(r: TaskRow, subtasks: Subtask[]): Task {
+export function rowToTask(r: TaskRow, subtasks: Subtask[], blockedBy: string[] = []): Task {
   return {
     id: r.id,
     title: r.title,
@@ -181,7 +207,7 @@ export function rowToTask(r: TaskRow, subtasks: Subtask[]): Task {
     stageId: r.stage_id ?? undefined,
     boardOrder: r.board_order ?? 0,
     tags: r.tags ?? [],
-    scheduled: isoDate(r.scheduled),
+    scheduled: r.scheduled == null ? null : isoDate(r.scheduled),
     dueTime: r.due_time ?? undefined,
     minutes: r.minutes as Duration,
     priority: r.priority as Priority,
@@ -194,6 +220,11 @@ export function rowToTask(r: TaskRow, subtasks: Subtask[]): Task {
     completedAt: r.completed_at ? ts(r.completed_at) : undefined,
     deletedAt: r.deleted_at ? ts(r.deleted_at) : undefined,
     subtasks,
+    committedOn: r.committed_on ? isoDate(r.committed_on) : undefined,
+    startOn: r.start_on ? isoDate(r.start_on) : undefined,
+    expiresOn: r.expires_on ? isoDate(r.expires_on) : undefined,
+    stageEnteredAt: r.stage_entered_at ? ts(r.stage_entered_at) : undefined,
+    blockedBy,
   };
 }
 
@@ -259,6 +290,23 @@ export function rowToTrackingSettings(r: TrackingSettingsRow): TrackingSettings 
     hiddenModules: r.hidden_modules,
     collapsedModules: r.collapsed_modules,
     hiddenNavItems: r.hidden_nav_items,
+    todayCap: r.today_cap ?? SETTINGS_DEFAULTS.todayCap,
+    dockBadge: (r.dock_badge ?? SETTINGS_DEFAULTS.dockBadge) as DockBadge,
+    captureShortcut: r.capture_shortcut ?? SETTINGS_DEFAULTS.captureShortcut,
+    nudgeMinutes: r.nudge_minutes === undefined ? SETTINGS_DEFAULTS.nudgeMinutes : r.nudge_minutes,
+    wrapHour: r.wrap_hour ?? SETTINGS_DEFAULTS.wrapHour,
+    weeklyResetDay: r.weekly_reset_day ?? SETTINGS_DEFAULTS.weeklyResetDay,
+    claudeAwareness: r.claude_awareness ?? SETTINGS_DEFAULTS.claudeAwareness,
+    dateOrder: (r.date_order ?? SETTINGS_DEFAULTS.dateOrder) as DateOrder,
+    updatedAt: ts(r.updated_at),
+  };
+}
+
+export function rowToDayReview(r: DayReviewRow): DayReview {
+  return {
+    day: isoDate(r.day),
+    energy: (r.energy ?? null) as DayEnergy | null,
+    note: r.note ?? null,
     updatedAt: ts(r.updated_at),
   };
 }
@@ -280,5 +328,17 @@ export async function subtasksFor(q: Q, taskIds: string[]): Promise<Map<string, 
 
 export async function hydrate(q: Q, rows: TaskRow[]): Promise<Task[]> {
   const subs = await subtasksFor(q, rows.map((r) => r.id));
-  return rows.map((r) => rowToTask(r, subs.get(r.id) ?? []));
+  const blockers = new Map<string, string[]>();
+  if (rows.length > 0) {
+    const links = await q.query<{ blocked_id: string; blocker_id: string }>(
+      `select l.blocked_id, l.blocker_id from task_links l join tasks b on b.id = l.blocker_id where l.blocked_id = any($1) and b.status <> 'trashed'`,
+      [rows.map((r) => r.id)],
+    );
+    for (const l of links) {
+      const list = blockers.get(l.blocked_id) ?? [];
+      list.push(l.blocker_id);
+      blockers.set(l.blocked_id, list);
+    }
+  }
+  return rows.map((r) => rowToTask(r, subs.get(r.id) ?? [], blockers.get(r.id) ?? []));
 }

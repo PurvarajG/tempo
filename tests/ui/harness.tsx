@@ -9,6 +9,7 @@ import type {
   Project,
   ProjectStage,
   QuickTodo,
+  Segment,
   Task,
   TimeEntry,
   TrackingSettings,
@@ -25,6 +26,8 @@ export type Workspace = {
   categories: Category[];
   activities: Activity[];
   trackingSettings: TrackingSettings;
+  /** Served by GET /api/segments?from=…; absent means nothing is running. */
+  runningSegment?: Segment | null;
 };
 
 export function makeCategory(overrides: Partial<Category> = {}): Category {
@@ -172,6 +175,9 @@ export function renderWorkspace(ui: React.ReactNode, workspace: Workspace = empt
       }
 
       if (method === "GET" && url in initial) return Response.json(initial[url]);
+      if (method === "GET" && url.startsWith("/api/segments?")) {
+        return Response.json({ segments: [], running: workspace.runningSegment ?? null });
+      }
       // Default: echo the patch back merged over the matching task.
       const id = url.split("/api/tasks/")[1]?.split("/")[0];
       const task = workspace.tasks.find((t) => t.id === id);

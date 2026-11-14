@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { inputClass, selectClass } from "@/components/ui/Field";
+import Button from "@/components/ui/Button";
+import { selectClass } from "@/components/ui/Field";
+import Icon from "@/components/ui/Icon";
+import Input from "@/components/ui/Input";
 import { useTasks } from "@/lib/store-context";
 
 /**
- * The "+ New" chip on the NOW card: a small popover that creates a preset,
- * pinned activity in one step so it appears as a chip immediately.
+ * The "New" chip beside the quick-start chips: a small popover that creates a
+ * preset, pinned activity in one step so it appears as a chip immediately.
  */
 export default function QuickAddActivity() {
   const { categories, addActivity } = useTasks();
@@ -48,15 +51,18 @@ export default function QuickAddActivity() {
   return (
     <div ref={containerRef} className="relative">
       <button
+        type="button"
         onClick={() => (open ? setOpen(false) : openPopover())}
-        className="flex min-h-11 items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground sm:min-h-9"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-meta font-medium text-ink-3 transition-colors hover:bg-sunk hover:text-ink"
       >
-        + New
+        <Icon name="plus" size={13} />
+        New
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 w-64 space-y-2 rounded-lg border border-border bg-card p-3 shadow-lg">
-          <input
+        <div className="absolute left-0 top-full z-20 mt-2 w-64 space-y-2 rounded-row bg-raised p-3 shadow-md ring-1 ring-line-2">
+          <Input
             ref={inputRef}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -66,7 +72,6 @@ export default function QuickAddActivity() {
             }}
             placeholder="Activity name"
             aria-label="New activity name"
-            className={inputClass}
           />
           <select
             value={categoryId}
@@ -81,19 +86,12 @@ export default function QuickAddActivity() {
             ))}
           </select>
           <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-            >
+            <Button size="sm" onClick={() => setOpen(false)}>
               Cancel
-            </button>
-            <button
-              onClick={submit}
-              disabled={!name.trim()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground disabled:opacity-50"
-            >
+            </Button>
+            <Button size="sm" variant="primary" onClick={submit} disabled={!name.trim()}>
               Add
-            </button>
+            </Button>
           </div>
         </div>
       )}

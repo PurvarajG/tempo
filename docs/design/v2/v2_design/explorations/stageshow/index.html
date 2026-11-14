@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tempo Today Directions</title>
+<style>
+:root { --bg: #f4f4f2; --card: #fff; --ink: #1a1a1a; --muted: #5c5c5a; --rule: #e2e2df; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0e0f10; --card: #17181a; --ink: #ececea; --muted: #a0a09c; --rule: #2a2b2e; } }
+:root[data-theme="dark"] { --bg: #0e0f10; --card: #17181a; --ink: #ececea; --muted: #a0a09c; --rule: #2a2b2e; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, sans-serif; }
+main { max-width: 1120px; margin: 0 auto; padding: 40px 16px 80px; }
+h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 6px; }
+.lede { color: var(--muted); max-width: 70ch; margin: 0 0 24px; }
+.bar { display: flex; gap: 8px; position: sticky; top: 0; padding: 12px 0; background: var(--bg); z-index: 1; }
+.bar button { font: inherit; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer; }
+.bar button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+section { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule); }
+h2 { font-size: 21px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.tag { color: var(--muted); margin: 0 0 16px; }
+img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 20px; }
+.cols h3 { font-size: 14px; margin: 0 0 6px; }
+.cols ul { margin: 0; padding-left: 18px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; }
+td:first-child { color: var(--muted); width: 22%; }
+.scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<h1>Tempo v2, the Today screen</h1>
+<p class="lede">Round 3. Today as a dashboard: your tasks, an input and the day, with no single task blown up. Fader stays as it is. Each new direction keeps Fader&rsquo;s centred tabs and tries a different kind of input. All four use the same day and the same tasks. None use orange, gradients or glows.</p>
+<div class="bar" role="group" aria-label="Theme">
+  <button data-mode="light" aria-pressed="true">Light</button>
+  <button data-mode="dark" aria-pressed="false">Dark</button>
+</div>
+
+<section>
+  <h2>Baseline: C. Fader</h2>
+  <p class="tag">From directions.html. Machined parts lit from above, the day as a fader track, lit teal Start.</p>
+  <img data-shot="fader" src="shots/fader-light.png" alt="Fader direction, Today screen">
+</section>
+
+<section>
+  <h2>G. Docket</h2>
+  <p class="tag">A large date beside a command bar with an Add or Find switch. As you type, the bar shows what it understood as chips before you press Return. The list has the states a real day has: project filters with counts, a task finished a moment ago with its Undo toast, the selected task carrying Start, and quick actions on the row under the pointer. The day card opens with one bar for done, planned and free time above the hour column. Porcelain white and forest green.</p>
+  <img data-shot="docket" src="shots/docket-light.png" alt="Docket direction, Today dashboard">
+  <div class="cols">
+    <div><h3>Compared with Fader</h3><ul><li>Fader's tabs and timer pill, unchanged.</li><li>The most complete feedback layer: preview before adding, Undo after finishing (RC6).</li><li>Filters make a long day manageable without leaving Today.</li></ul></div>
+    <div><h3>Watch out for</h3><ul><li>The busiest of the three. Every piece earns its place, but there are many pieces.</li><li>The day card is narrow, so block names get cut off.</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>H. Ledger</h2>
+  <p class="tag">A day tape across the top, read like a ruler: the past is shaded, each hour has its rule, blocks carry their names where they fit, and now is a wine capsule riding the line. The input is the table's first row and fills its own columns as you type. The selected row opens one line deeper with what the task is about, its three verbs, and the keys that do them. Stone, ink and wine, set in Schibsted Grotesk with DM Mono for times.</p>
+  <img data-shot="ledger" src="shots/ledger-light.png" alt="Ledger direction, Today dashboard">
+  <div class="cols">
+    <div><h3>Compared with Fader</h3><ul><li>Fader's day across the top, flattened into a tape that also names finished work.</li><li>Built for the keyboard: the selected row teaches its own shortcuts.</li><li>The calmest of the three, and the closest to "modernist and premium".</li></ul></div>
+    <div><h3>Watch out for</h3><ul><li>A table can feel like a spreadsheet; its type has to stay excellent.</li><li>Wine red marks now. Change it if red reads as alarm to you.</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>I. Planner</h2>
+  <p class="tag">The day is the page. The header pairs a large date with the week, each day showing how full it is. The mock is caught mid-plan: a task lifted out of Not scheduled is being carried over the day, with the slot it will land in shown underneath with its times. A composer at the bottom turns what it recognises into chips inside the field. Graphite and steel blue, set in Onest with IBM Plex Mono for times.</p>
+  <img data-shot="planner" src="shots/planner-light.png" alt="Planner direction, Today dashboard">
+  <div class="cols">
+    <div><h3>Compared with Fader</h3><ul><li>Time becomes the layout itself, not a panel. You see how long things are.</li><li>Planning by dragging, with the landing slot shown before you drop.</li><li>The week strip shows a lighter day to move work to, at a glance.</li></ul></div>
+    <div><h3>Watch out for</h3><ul><li>Very short tasks need a minimum height, so the day isn't exactly to scale.</li><li>Close to a calendar app, so it overlaps with the Plan tab.</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>Against the section 7 questions</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Question</th><th>C. Fader</th><th>G. Docket</th><th>H. Ledger</th><th>I. Planner</th></tr></thead>
+    <tbody>
+      <tr><td>Today shows</td><td>One big task, the day, a short list</td><td>Input, the full list, the day</td><td>Input inside the list, a day strip</td><td>The day as the page, unscheduled tasks, input</td></tr>
+      <tr><td>Input style</td><td>Not shown</td><td>Command bar with a chip preview</td><td>A table row that fills its own columns</td><td>Bottom composer with chips inside the field</td></tr>
+      <tr><td>Time as shape</td><td>Fader track, plus three numbers</td><td>Day column</td><td>Full-width strip</td><td>A day view with blocks sized by duration</td></tr>
+      <tr><td>Visual voice</td><td>Warm, tactile</td><td>Clean, light</td><td>Editorial, printed</td><td>Calm, tool-like</td></tr>
+      <tr><td>Navigation</td><td colspan="4">All four: Today, Plan, Time and Everything centred in the title bar, with the timer pill on the right (kept from Fader)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tag" style="margin-top:16px">Earlier rounds are kept: round 1 (Meridian, Folio, Station) in shots/round-1, round 2 (the plainer versions of these three) in shots/round-2.</p>
+</section>
+</main>
+<script>
+const root = document.documentElement;
+function set(mode) {
+  root.dataset.theme = mode;
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  document.querySelectorAll('[data-shot]').forEach(img => { img.src = `shots/${img.dataset.shot}-${mode}.png`; });
+  try { localStorage.setItem('ss-mode', mode); } catch (e) {}
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => set(b.dataset.mode)));
+let saved = null; try { saved = localStorage.getItem('ss-mode'); } catch (e) {}
+set(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+</script>
+</body>
+</html>

@@ -1,9 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Caption from "./Caption";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * True when `node` is the last aria-modal layer in document order. Dialog is
+ * portaled to body after the panel, so an open Dialog sits later in the DOM and
+ * owns Escape and Tab while it is open.
+ */
+export function isTopLayer(node: HTMLElement | null): boolean {
+  if (!node) return false;
+  const layers = document.querySelectorAll<HTMLElement>('[aria-modal="true"]');
+  return layers.length > 0 && layers[layers.length - 1] === node;
+}
 
 /**
  * A right-side panel on desktop, a full-height sheet below `sm`. Both are the
@@ -35,6 +47,7 @@ export default function SidePanel({
     node?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
+      if (!isTopLayer(node)) return;
       if (event.key === "Escape") {
         event.stopPropagation();
         onClose();
@@ -69,11 +82,8 @@ export default function SidePanel({
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Scrim stays a literal black overlay, not a token: it dims whatever is behind it
-         (page content in light OR dark theme), so it must be theme-invariant rather than
-         following --color-foreground/--color-background, which would invert its effect. */}
       <div
-        className="absolute inset-0 bg-black/30 motion-safe:transition-opacity"
+        className="absolute inset-0 bg-scrim motion-safe:transition-opacity"
         onClick={onClose}
         aria-hidden
       >
@@ -98,16 +108,14 @@ export default function SidePanel({
         // could shrink the effective viewport. If `minWidth` ever drops
         // below 640px, or page zoom is added, this needs the same h-9
         // spacer treatment as the scrim.
-        className="no-drag absolute inset-y-0 right-0 flex w-full flex-col border-l border-border bg-background shadow-xl sm:max-w-md"
+        className="no-drag absolute inset-y-0 right-0 flex w-full flex-col bg-surface shadow-md ring-1 ring-line sm:max-w-md"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
-            {title}
-          </h2>
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <Caption as="h2">{title}</Caption>
           <button
             onClick={onClose}
             aria-label="Close panel"
-            className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:size-8"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-ink-2 ring-1 ring-line transition-colors duration-150 ease-out hover:bg-sunk hover:text-ink"
           >
             ×
           </button>
@@ -115,7 +123,7 @@ export default function SidePanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
 
-        {footer && <div className="border-t border-border px-5 py-3">{footer}</div>}
+        {footer && <div className="border-t border-line px-5 py-3">{footer}</div>}
       </div>
     </div>
   );

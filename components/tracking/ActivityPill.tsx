@@ -3,10 +3,9 @@
 import CategoryDot from "./CategoryDot";
 
 /**
- * The activity quick-start button — the prototype's `.pill` treatment
- * (bordered, card-background, compact). Shared by `NowModule`'s quick-start
- * row and `UnaccountedModule`'s per-gap fill row, which previously
- * duplicated this exact button markup.
+ * The activity quick-start chip (soft.html `.pill`): hairline ring, rounded-full,
+ * small ink-2 text. The running one is accent-soft with accent text. Shared by
+ * `NowModule`'s quick-start row and `UnaccountedModule`'s per-gap fill row.
  */
 export default function ActivityPill({
   color,
@@ -24,8 +23,11 @@ export default function ActivityPill({
       type="button"
       onClick={onClick}
       disabled={active}
-      className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:min-h-9 ${
-        active ? "border-accent/40 bg-accent/10 text-accent" : "border-border bg-card hover:border-accent/30"
+      aria-pressed={active}
+      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-meta font-medium transition-colors ${
+        active
+          ? "bg-accent-soft text-accent"
+          : "text-ink-2 inset-ring inset-ring-line-2 hover:bg-sunk hover:text-ink"
       }`}
     >
       <CategoryDot color={color} />

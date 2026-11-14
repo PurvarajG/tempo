@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import Icon from "@/components/ui/Icon";
 
-type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "system";
 
 function apply(theme: Theme) {
   const root = document.documentElement;
@@ -23,12 +24,18 @@ function subscribe(notify: () => void) {
   };
 }
 
+function write(next: Theme) {
+  localStorage.setItem("theme", next);
+  for (const notify of listeners) notify();
+  window.dispatchEvent(new Event(CHANGED));
+}
+
 /**
  * The saved theme lives in localStorage, so it's read as an external store
  * rather than copied into state by an effect. The server snapshot is `null`,
- * which renders the placeholder and keeps hydration honest.
+ * which lets the toggle render a placeholder and keeps hydration honest.
  */
-export default function ThemeToggle() {
+function useStoredTheme(): Theme | null {
   const theme = useSyncExternalStore(
     subscribe,
     () => (localStorage.getItem("theme") as Theme | null) ?? "system",
@@ -40,40 +47,57 @@ export default function ThemeToggle() {
     if (theme) apply(theme);
   }, [theme]);
 
+  return theme;
+}
+
+/** Shared by the top bar toggle and the Settings Appearance section. */
+export function useTheme(): [Theme, (next: Theme) => void] {
+  const theme = useStoredTheme();
+  return [theme ?? "system", write];
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function subscribeScheme(notify: () => void) {
+  if (typeof window.matchMedia !== "function") return () => {};
+  const mq = window.matchMedia(DARK_QUERY);
+  mq.addEventListener("change", notify);
+  return () => mq.removeEventListener("change", notify);
+}
+
+/** Whether the OS prefers dark; used to resolve the 'system' theme. */
+function useSystemDark(): boolean {
+  return useSyncExternalStore(
+    subscribeScheme,
+    () => typeof window.matchMedia === "function" && window.matchMedia(DARK_QUERY).matches,
+    () => false,
+  );
+}
+
+export default function ThemeToggle() {
+  const theme = useStoredTheme();
+  const systemDark = useSystemDark();
+
   const cycle = useCallback(() => {
     const order: Theme[] = ["system", "light", "dark"];
-    const next = order[(order.indexOf(theme ?? "system") + 1) % order.length];
-    localStorage.setItem("theme", next);
-    for (const notify of listeners) notify();
-    window.dispatchEvent(new Event(CHANGED));
+    write(order[(order.indexOf(theme ?? "system") + 1) % order.length]);
   }, [theme]);
 
-  if (!theme) return <div className="size-8" />;
+  if (!theme) return <div className="size-9" />;
 
   const label = theme === "system" ? "Auto" : theme === "light" ? "Light" : "Dark";
 
+  const renderedDark = theme === "dark" || (theme === "system" && systemDark);
+
   return (
     <button
+      data-part="icon-btn"
       onClick={cycle}
       aria-label={`Theme: ${label}. Click to change.`}
       title={`Theme: ${label}`}
-      className="no-drag flex size-8 items-center justify-center rounded-lg text-nav-foreground transition-colors hover:bg-nav-hover hover:text-white"
+      className="no-drag grid size-9 shrink-0 place-items-center rounded-full ring-1 ring-line text-ink-2 transition-colors duration-150 ease-out hover:bg-sunk hover:text-ink"
     >
-      {theme === "dark" ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      ) : theme === "light" ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-        </svg>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="2" y="3" width="20" height="14" rx="2" />
-          <path d="M8 21h8M12 17v4" />
-        </svg>
-      )}
+      <Icon name={renderedDark ? "sun" : "moon"} size={16} />
     </button>
   );
 }

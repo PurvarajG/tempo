@@ -13,7 +13,7 @@ export default function MetaLabel({
   className?: string;
 }) {
   return (
-    <Tag className={`font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground ${className}`}>
+    <Tag className={`font-mono text-caption uppercase tracking-caption text-ink-3 ${className}`}>
       {children}
     </Tag>
   );

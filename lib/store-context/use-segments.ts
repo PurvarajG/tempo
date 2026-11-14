@@ -58,6 +58,8 @@ export type SegmentsApi = {
     }>,
   ) => Promise<void>;
   deleteSegment: (id: string) => Promise<void>;
+  /** Splits a segment at `at`; both halves replace it locally. Null when the server refused. */
+  splitSegmentAt: (id: string, at: string) => Promise<{ before: Segment; after: Segment } | null>;
   addCategory: (input: CategoryInput) => Promise<void>;
   patchCategory: (id: string, patch: Partial<CategoryInput> & { archived?: boolean }) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -244,6 +246,30 @@ export function useSegments(onError: (message: string) => void): SegmentsApi {
     [onError],
   );
 
+  const splitSegmentAt = useCallback<SegmentsApi["splitSegmentAt"]>(
+    async (id, at) => {
+      try {
+        const halves = await request<{ before: Segment; after: Segment }>(`/api/segments/${id}/split`, {
+          method: "POST",
+          body: JSON.stringify({ at }),
+        });
+        setSegments((prev) => {
+          const without = prev.filter((s) => s.id !== id && s.id !== halves.before.id && s.id !== halves.after.id);
+          return [halves.after, halves.before, ...without];
+        });
+        // Splitting the live segment leaves the open half (after) running.
+        setRunningSegment((prev) =>
+          prev && prev.id === id ? (halves.after.endedAt ? null : halves.after) : prev,
+        );
+        return halves;
+      } catch (error) {
+        onError((error as Error).message);
+        return null;
+      }
+    },
+    [onError],
+  );
+
   const addCategory = useCallback(
     async (input: CategoryInput) => {
       try {
@@ -412,6 +438,7 @@ export function useSegments(onError: (message: string) => void): SegmentsApi {
     fillGap,
     patchSegment,
     deleteSegment,
+    splitSegmentAt,
     addCategory,
     patchCategory,
     deleteCategory,

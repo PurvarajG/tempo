@@ -11,6 +11,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     return store.updateStage(v.uuid(id, "column id"), {
       ...(b.name !== undefined ? { name: v.nonEmpty(b.name, "Column name", 80) } : {}),
       ...(b.kind !== undefined ? { kind: v.stageKind(b.kind, "kind") } : {}),
+      ...(b.wipLimit !== undefined ? { wipLimit: v.nullablePositiveInt(b.wipLimit, "wipLimit", 99) } : {}),
     });
   });
 }

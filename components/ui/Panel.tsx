@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import SectionLabel from "../SectionLabel";
+import { useId, useState } from "react";
+import Card, { CardHeader } from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
 
 /**
- * The card chrome shared by every disclosure panel in the app — previously
- * duplicated between `tracking/ModuleCard` (the collapsible card frame) and
- * `ui/RailPanel` (the same frame, plus a quiet dashed-line empty state).
- * Both of those are now thin wrappers over this component so existing call
- * sites keep their exact prop shapes and behaviour.
+ * The disclosure panel shared across the app, drawn as the v2 card: the shared
+ * card header (label left, optional action and a ghost chevron right) over a
+ * padded body. `tracking/ModuleCard` and `ui/RailPanel` wrap it so existing call
+ * sites keep their prop shapes. The `empty` state is a quiet one-line row.
  */
 export default function Panel({
   title,
@@ -34,49 +34,47 @@ export default function Panel({
   emptyText?: string;
   children: React.ReactNode;
 }) {
+  const titleId = useId();
   const [localCollapsed, setLocalCollapsed] = useState(defaultCollapsed);
   const collapsed = onToggleCollapse ? (collapsedProp ?? false) : localCollapsed;
   const toggle = onToggleCollapse ?? (() => setLocalCollapsed((v) => !v));
 
   if (empty) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3.5 py-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/70">
-          {title}
-        </span>
-        <span className="truncate text-xs text-muted-foreground/60">{emptyText}</span>
+      <div className="flex items-center justify-between gap-3 rounded-row px-4 py-2 ring-1 ring-line">
+        <span className="text-body font-medium text-ink-2">{title}</span>
+        <span className="truncate text-meta text-ink-3">{emptyText}</span>
       </div>
     );
   }
 
-  return (
-    <section className="rounded-xl border border-border/70 bg-card">
-      <div
-        className={`flex items-center justify-between gap-3 rounded-t-xl bg-muted/30 px-3.5 py-2 ${collapsed ? "rounded-b-xl" : ""}`}
-      >
-        <SectionLabel>{title}</SectionLabel>
-        <div className="flex shrink-0 items-center gap-2">
-          {action}
-          {collapsible && (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <span
-                aria-hidden
-                className={`inline-block font-mono text-xs transition-transform motion-safe:duration-200 ${collapsed ? "-rotate-90" : ""}`}
-              >
-                ▾
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
+  const controls =
+    action != null || collapsible ? (
+      <>
+        {action}
+        {collapsible && (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+            className="grid size-7 place-items-center rounded-tile text-ink-3 transition-colors duration-150 ease-out hover:bg-sunk hover:text-ink"
+          >
+            <Icon name="chev" size={16} className={collapsed ? "" : "rotate-90"} />
+          </button>
+        )}
+      </>
+    ) : undefined;
 
-      {!collapsed && <div className="p-3.5">{children}</div>}
-    </section>
+  return (
+    <Card aria-labelledby={titleId}>
+      <CardHeader
+        titleId={titleId}
+        title={title}
+        className={collapsed ? "pb-4" : undefined}
+        action={controls}
+      />
+      {!collapsed && <div className="px-4 pb-4">{children}</div>}
+    </Card>
   );
 }

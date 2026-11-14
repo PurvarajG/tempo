@@ -5,15 +5,16 @@ import { describe, expect, it, vi } from "vitest";
 import worker from "../../site/worker/index.js";
 
 const downloadUrl =
-  "https://github.com/PurvarajG/TaskManager/releases/latest/download/Tempo-latest-arm64.dmg";
+  "https://github.com/PurvarajG/doem/releases/latest/download/Doem-latest-arm64.dmg";
 const execFile = promisify(execFileCallback);
 
-describe("Tempo download site", () => {
+describe("Doem download site", () => {
   it("offers the stable Apple-silicon DMG and accurate local-first trust copy", async () => {
     const page = await readFile("site/index.html", "utf8");
 
     expect(page).toContain(downloadUrl);
-    expect(page).toContain("Download for Apple Silicon");
+    expect(page).toContain("Download for Mac");
+    expect(page).toContain("Apple Silicon, macOS 12");
     expect(page).toContain("local PGlite data");
     expect(page).toContain("No account");
   });
@@ -22,7 +23,7 @@ describe("Tempo download site", () => {
     const page = await readFile("site/index.html", "utf8");
 
     expect(page).toMatch(
-      /class="download-button"[\s\S]*?Tempo-latest-arm64\.dmg"[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"/,
+      /class="download-button"[\s\S]*?Doem-latest-arm64\.dmg"[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"/,
     );
   });
 
@@ -31,7 +32,7 @@ describe("Tempo download site", () => {
 
     expect(workflow).toContain('tags: ["v*"]');
     expect(workflow).toContain("npm run electron:build -- --publish never");
-    expect(workflow).toContain("Tempo-latest-arm64.dmg");
+    expect(workflow).toContain("Doem-latest-arm64.dmg");
     expect(workflow).toContain("softprops/action-gh-release");
   });
 
@@ -49,7 +50,7 @@ describe("Tempo download site", () => {
     await execFile(process.execPath, ["build.mjs"], { cwd: "site" });
 
     await expect(readFile("site/dist/client/index.html", "utf8")).resolves.toContain(
-      "Tempo — Your day, at a glance",
+      "Doem — Your day, at a glance",
     );
     await expect(readFile("site/dist/client/styles.css", "utf8")).resolves.toContain(
       ".site-shell",
@@ -57,7 +58,7 @@ describe("Tempo download site", () => {
   });
 
   it("serves the static document for the public root URL", async () => {
-    const fetchAsset = vi.fn().mockResolvedValue(new Response("Tempo"));
+    const fetchAsset = vi.fn().mockResolvedValue(new Response("Doem"));
     const response = await worker.fetch(
       new Request("https://tempo-download.purvarajg1.chatgpt.site/"),
       { ASSETS: { fetch: fetchAsset } },
@@ -68,6 +69,6 @@ describe("Tempo download site", () => {
         url: "https://tempo-download.purvarajg1.chatgpt.site/index.html",
       }),
     );
-    expect(await response.text()).toBe("Tempo");
+    expect(await response.text()).toBe("Doem");
   });
 });

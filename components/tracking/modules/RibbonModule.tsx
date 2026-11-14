@@ -2,18 +2,23 @@
 
 import { useState } from "react";
 import { useTasks } from "@/lib/store-context";
+import { suggestedClaudeBlocks, pickClaudeCategory } from "@/lib/claude-sessions";
+import { useClaudeSessions } from "@/lib/useClaudeSessions";
 import { dayWindow } from "@/lib/tracking-day";
 import { projectColorVar, type Gap, type Segment, type TrackingSettings } from "@/lib/types";
-import HourGrid from "../../time/HourGrid";
+import { HourGridBox, HourRail } from "../../time/HourGrid";
+import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import { fmt, fmtClock, fmtTime } from "@/lib/format";
+import ClaudeBlock from "../ClaudeBlock";
 import CategoryPicker from "../CategoryPicker";
 import GapBlock from "../GapBlock";
 import GapFillForm from "../GapFillForm";
-import MetaLabel from "../MetaLabel";
 import { segmentSubject } from "../segment-label";
 import TaskPicker from "../TaskPicker";
 import TimeBlock from "../TimeBlock";
 
-const PX_PER_HOUR = 32;
+const PX_PER_HOUR = 48;
 const MAX_RIBBON_PX = 560; // scroll inside the card past this, never grow the page
 
 function minutesFromStart(iso: string, dayStart: Date): number {
@@ -33,13 +38,6 @@ function ribbonWindow(kind: "full" | "cropped", settings: TrackingSettings, dayS
   return { windowStartHour, windowHours, windowStart, height: windowHours * PX_PER_HOUR };
 }
 
-function formatMinutes(total: number): string {
-  const m = Math.round(total);
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
-}
-
-const pad = (h: number) => String(h).padStart(2, "0");
-
 /**
  * The vertical continuous day. Reuses DashboardTimeline's geometry approach
  * (percentage offsets, repeating gridlines) rotated to vertical — an hour
@@ -49,8 +47,9 @@ const pad = (h: number) => String(h).padStart(2, "0");
  * scrolling inside the card rather than growing the page.
  */
 export default function RibbonModule({ dayISO, isToday }: { dayISO: string; isToday: boolean }) {
-  const { segments, gaps, categories, activities, tasks, projects, settings, deleteSegment, patchSegment } =
+  const { segments, gaps, categories, activities, tasks, projects, settings, deleteSegment, patchSegment, addManualSegment } =
     useTasks();
+  const sessions = useClaudeSessions();
   const [selected, setSelected] = useState<{ kind: "segment"; segment: Segment } | { kind: "gap"; gap: Gap } | null>(
     null,
   );
@@ -70,6 +69,9 @@ export default function RibbonModule({ dayISO, isToday }: { dayISO: string; isTo
   if (!settings || !dayStart) return null;
   const { end: dayEnd } = dayWindow(dayISO, settings);
   const now = new Date();
+
+  const suggestions = suggestedClaudeBlocks(sessions, { start: dayStart, end: dayEnd }, segments, now);
+  const claudeCategoryId = pickClaudeCategory(categories);
 
   const cropped = ribbonWindow("cropped", settings, dayStart);
   const { windowStartHour, windowHours, windowStart, height } = full
@@ -96,11 +98,24 @@ export default function RibbonModule({ dayISO, isToday }: { dayISO: string; isTo
   for (const gap of gaps) {
     if (isOutsideCropped(gap.startedAt, gap.endedAt)) outsideMinutes += gap.minutes;
   }
+  for (const s of suggestions) {
+    if (isOutsideCropped(s.startedAt, s.endedAt)) {
+      outsideMinutes += (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60_000;
+    }
+  }
 
   return (
     <div className="space-y-3">
       <div className="overflow-y-auto" style={{ maxHeight: MAX_RIBBON_PX }}>
-        <HourGrid windowStartHour={windowStartHour} windowHours={windowHours} height={height} nowOffset={nowOffset}>
+        <div className="flex">
+          <HourRail
+            variant="calendar"
+            windowStartHour={windowStartHour}
+            windowHours={windowHours}
+            height={height}
+            className="w-14 shrink-0"
+          />
+          <HourGridBox windowHours={windowHours} height={height} nowOffset={nowOffset}>
           {segments.map((segment) => {
             const top = Math.max(0, y(segment.startedAt));
             const endISO = segment.endedAt ?? (isToday ? now.toISOString() : dayEnd.toISOString());
@@ -114,9 +129,9 @@ export default function RibbonModule({ dayISO, isToday }: { dayISO: string; isTo
                 color={category?.color ?? "cat-neutral"}
                 label={subject.label}
                 projectColor={subject.project?.color ? projectColorVar(subject.project.color) : undefined}
-                density="continuous"
+                short={bottom - top < 24}
                 onClick={() => setSelected({ kind: "segment", segment })}
-                style={{ position: "absolute", top, height: Math.max(bottom - top, 4), left: 0, right: 0 }}
+                style={{ position: "absolute", top, height: Math.max(bottom - top, 4), left: 4, right: 4 }}
               />
             );
           })}
@@ -128,27 +143,51 @@ export default function RibbonModule({ dayISO, isToday }: { dayISO: string; isTo
             return (
               <GapBlock
                 key={`${gap.startedAt}-${gap.endedAt}`}
-                label={`${gap.minutes}m untracked`}
+                label={`${fmt(Math.round(gap.minutes))} gap`}
                 onClick={() => setSelected({ kind: "gap", gap })}
-                style={{ position: "absolute", top, height: Math.max(bottom - top, 4), left: 0, right: 0 }}
+                style={{ position: "absolute", top, height: Math.max(bottom - top, 4), left: 4, right: 4 }}
               />
             );
           })}
-        </HourGrid>
+
+          {suggestions.map((s) => {
+            const top = Math.max(0, y(s.startedAt));
+            const bottom = Math.min(height, y(s.endedAt));
+            if (bottom <= 0 || top >= height || bottom <= top) return null;
+            return (
+              <ClaudeBlock
+                key={s.key}
+                label={s.label}
+                timeLabel={`${fmtClock(new Date(s.startedAt))} to ${fmtClock(new Date(s.endedAt))}`}
+                short={bottom - top < 24}
+                disabled={claudeCategoryId === undefined}
+                onAccept={() => {
+                  if (claudeCategoryId === undefined) return;
+                  void addManualSegment({
+                    startedAt: s.startedAt,
+                    endedAt: s.endedAt,
+                    categoryId: claudeCategoryId,
+                    note: s.note,
+                  });
+                }}
+                style={{ position: "absolute", top, height: Math.max(bottom - top, 4), left: 4, right: 4 }}
+              />
+            );
+          })}
+          </HourGridBox>
+        </div>
       </div>
 
       {(full || outsideMinutes > 0) && (
-        <button type="button" onClick={() => setFull((v) => !v)} className="block">
-          <MetaLabel>
-            {full
-              ? "⌃ show waking hours only"
-              : `⌃ ${formatMinutes(outsideMinutes)} outside ${pad(settings.wakingStartHour)}:00–${pad(settings.wakingEndHour)}:00 — show full day`}
-          </MetaLabel>
-        </button>
+        <Button variant="ghost" size="sm" icon="chev" onClick={() => setFull((v) => !v)}>
+          {full
+            ? "Show waking hours"
+            : `${fmt(Math.round(outsideMinutes))} outside ${fmtTime(`${settings.wakingStartHour}:00`)} to ${fmtTime(`${settings.wakingEndHour}:00`)}. Show full day`}
+        </Button>
       )}
 
       {selected && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 rounded-row bg-sunk p-3">
           {selected.kind === "gap" ? (
             <GapFillForm gap={selected.gap} onFilled={() => setSelected(null)} />
           ) : (
@@ -191,13 +230,16 @@ function SegmentEditor({
     <>
       <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />
       <TaskPicker tasks={tasks} projects={projects} value={taskId || undefined} onChange={setTaskId} clearable />
-      <input
+      <Input
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Note (optional)"
-        className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent/40"
+        aria-label="Note"
+        wrapperClassName="min-w-0 flex-1"
       />
-      <button
+      <Button
+        variant="primary"
+        size="sm"
         onClick={() =>
           onSave({
             categoryId,
@@ -205,22 +247,15 @@ function SegmentEditor({
             ...(taskId !== (segment.taskId ?? "") ? { taskId, activityId: taskId ? "" : undefined } : {}),
           })
         }
-        className="min-h-11 shrink-0 rounded-lg bg-gradient-to-r from-accent to-accent-secondary px-3 py-2 text-sm font-medium text-accent-foreground hover:brightness-110 sm:min-h-9"
       >
         Save
-      </button>
-      <button
-        onClick={onDelete}
-        className="min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-9"
-      >
-        Delete
-      </button>
-      <button
-        onClick={onCancel}
-        className="min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground sm:min-h-9"
-      >
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onCancel}>
         Cancel
-      </button>
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onDelete}>
+        Delete
+      </Button>
     </>
   );
 }

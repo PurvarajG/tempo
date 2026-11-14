@@ -1,19 +1,19 @@
 import type { CSSProperties } from "react";
-import { categoryColorVar, categoryTint } from "./colors";
+import { categoryColorVar } from "./colors";
 
 /**
- * A segment on the timeline, in one of two treatments — same palette, two
- * readings. Sparse contexts (a handful of blocks) read fine as solid colour;
- * a continuous day of 20+ contiguous blocks would read as a paintbox at full
- * saturation, so the ribbon uses a 12% tint with a saturated left rule
- * instead. Positioning (absolute, top/height or left/width) is the caller's.
+ * A tracked segment on the day ribbon, in the calendar's block language
+ * (`.cal-ev` in globals.css): a category-tinted fill on the surface, tile
+ * radius, a 2px left edge in the category colour, title 12px weight 500 in
+ * ink, and an optional project dot ahead of it. Positioning (top/height) is
+ * the caller's.
  */
 export default function TimeBlock({
   color,
   label,
-  density = "sparse",
+  short = false,
   faded = false,
-  /** A task's project colour — rendered as a small dot ahead of the label, since a task-linked block belongs to something bigger than its category. */
+  /** A task's project colour, rendered as a small dot ahead of the label. */
   projectColor,
   onClick,
   style,
@@ -21,7 +21,8 @@ export default function TimeBlock({
 }: {
   color: string;
   label: string;
-  density?: "sparse" | "continuous";
+  /** A block too low for the full padding, like `.cal-ev.is-short`. */
+  short?: boolean;
   /** Completed/inactive states dim without changing the palette. */
   faded?: boolean;
   projectColor?: string;
@@ -30,28 +31,26 @@ export default function TimeBlock({
   className?: string;
 }) {
   const Tag = onClick ? "button" : "div";
-  const sparse = density === "sparse";
+  const cls = ["cal-ev", short ? "is-short" : "", faded ? "is-done" : "", className].filter(Boolean).join(" ");
 
   return (
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
       title={label}
-      className={`truncate rounded px-2 text-left text-[10px] font-medium transition-opacity ${
-        onClick ? "hover:opacity-85" : ""
-      } ${faded ? "opacity-55 line-through" : ""} ${sparse ? "shadow-sm" : "border-l-[3px]"} ${className}`}
-      style={{
-        ...style,
-        backgroundColor: sparse ? categoryColorVar(color) : categoryTint(color, 12),
-        color: sparse ? "var(--color-accent-foreground)" : "var(--color-foreground)",
-        borderLeftColor: sparse ? undefined : categoryColorVar(color),
-      }}
+      className={cls}
+      style={{ ...style, ["--c" as string]: categoryColorVar(color) }}
     >
-      <span className="flex items-center gap-1 truncate">
+      <span className="cal-ev-title">
         {projectColor && (
-          <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: projectColor }} />
+          <span
+            aria-hidden
+            data-testid="project-dot"
+            className="mr-1.5 inline-block size-1.5 rounded-full align-middle"
+            style={{ background: projectColor }}
+          />
         )}
-        <span className="truncate">{label}</span>
+        {label}
       </span>
     </Tag>
   );

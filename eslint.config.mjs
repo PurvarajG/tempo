@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Packaged Electron output — a copy of .next plus all of node_modules.
     "dist-electron/**",
+    // Design mockups and planning for v2 (includes .ts/.tsx explorations), not app code.
+    "docs/design/**",
   ]),
   {
     // Electron's main process and electron-builder hooks are plain CommonJS;

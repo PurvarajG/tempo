@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useElapsed } from "@/components/TaskTime";
+import Button from "@/components/ui/Button";
+import Caption from "@/components/ui/Caption";
+import { fmt } from "@/lib/format";
 import { useTasks } from "@/lib/store-context";
 import ActivityPill from "../ActivityPill";
 import CategoryDot from "../CategoryDot";
-import MetaLabel from "../MetaLabel";
 import { presetChips } from "../presets";
 import QuickAddActivity from "../QuickAddActivity";
 import { segmentLabel } from "../segment-label";
@@ -23,6 +25,7 @@ export default function NowModule() {
 
   const elapsed = useElapsed(runningSegment?.startedAt);
   const runningCategory = categories.find((c) => c.id === runningSegment?.categoryId);
+  const elapsedMinutes = Number.parseInt(elapsed.split(":")[0] ?? "0", 10) || 0;
   const runningLabel = runningSegment ? segmentLabel(runningSegment, categories, activities, tasks) : "";
 
   const { pinned, rest } = presetChips(activities, categories);
@@ -52,106 +55,97 @@ export default function NowModule() {
     }
   }
 
+  const chip = ({ activity, category }: (typeof pinned)[number]) => (
+    <ActivityPill
+      key={activity.id}
+      color={category.color}
+      name={activity.name}
+      active={runningSegment?.activityId === activity.id}
+      onClick={() => start(category.id, activity.id)}
+    />
+  );
+
   return (
-    <div className="space-y-4">
-      {/* The prototype's `.timer` block: an always-dark `--color-ink` surface
-          (its own `--color-ink-foreground` on-surface text — never
-          `text-background`, which would go near-black in dark mode) with a
-          round play/stop control and a large mono elapsed readout on the
-          right. Idle state keeps the same shape so starting doesn't jump the
-          layout; the play control is inert while idle since starting
-          requires picking a task or category below. */}
-      <div className="flex flex-wrap items-center gap-4 rounded-xl bg-ink px-4 py-4 text-ink-foreground">
-        {runningSegment ? (
-          <button
-            type="button"
-            onClick={() => stopSegment()}
-            aria-label="Stop"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-lg text-accent-foreground transition-transform motion-safe:hover:scale-105"
-          >
-            ■
-          </button>
-        ) : (
-          <span
-            aria-hidden
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink-foreground/15 text-lg text-ink-foreground/50"
-          >
-            ▶
-          </span>
-        )}
+    <div className="space-y-5">
+      {/* The Up next row's form (.task.next): raised, shadow-md, radius 14, padding 16. */}
+      <div
+        data-testid="now-status"
+        className="flex items-center gap-3 rounded-composer bg-raised p-4 shadow-md ring-1 ring-line-2"
+      >
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-2 truncate text-sm font-medium">
-            {runningSegment && (
-              <span aria-hidden className="size-2 shrink-0 rounded-full bg-accent motion-safe:animate-pulse-dot" />
-            )}
-            {runningSegment && runningCategory && <CategoryDot color={runningCategory.color} />}
-            <span className="truncate">{runningSegment ? runningLabel : "Start a focused activity"}</span>
-          </p>
-          <p className="mt-0.5 truncate text-xs text-ink-foreground/60">
-            {runningSegment ? "Tracking now" : "Pick a task or a category below"}
-          </p>
+          {runningSegment ? (
+            <>
+              <span className="inline-flex items-center gap-2 text-meta text-ink-3">
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ok motion-safe:animate-pulse-dot" />
+                Running
+              </span>
+              <p className="mt-1 flex min-w-0 items-center gap-2 text-upnext text-ink">
+                {runningCategory && <CategoryDot color={runningCategory.color} />}
+                <span className="truncate">{runningLabel}</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-upnext text-ink">Nothing running</p>
+              <p className="mt-1 text-meta text-ink-3">Pick a task or an activity below.</p>
+            </>
+          )}
         </div>
-        <span className="ml-auto shrink-0 font-mono text-xl tabular-nums" aria-live="off">
-          {runningSegment ? elapsed : "00:00"}
-        </span>
+        {runningSegment && (
+          <>
+            <span className="shrink-0 font-mono text-secondary tabular-nums text-ink" aria-live="off">
+              {fmt(elapsedMinutes)}
+            </span>
+            <Button variant="primary" onClick={() => stopSegment()}>
+              Stop
+            </Button>
+          </>
+        )}
       </div>
 
-      <div>
-        <MetaLabel className="mb-2 block">Start a task</MetaLabel>
+      <div className="space-y-2">
+        <Caption as="div">Start a task</Caption>
         <TaskPicker
           tasks={tasks}
           projects={projects}
           value={runningSegment?.taskId}
           onChange={startTask}
-          placeholder="Time a task…"
+          placeholder="Start a task…"
           size="lg"
         />
       </div>
 
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <MetaLabel>Quick start</MetaLabel>
-          <a href="/tracking/settings" className="font-mono text-[10px] uppercase tracking-[0.1em] text-accent hover:underline">
-            Manage →
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Caption>Quick start</Caption>
+          <a href="/tracking/settings" className="text-meta text-accent hover:underline">
+            Manage
           </a>
         </div>
 
         {visiblePinned.length > 0 || hiddenRest.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
-            {visiblePinned.map(({ activity, category }) => (
-              <ActivityPill
-                key={activity.id}
-                color={category.color}
-                name={activity.name}
-                active={runningSegment?.activityId === activity.id}
-                onClick={() => start(category.id, activity.id)}
-              />
-            ))}
+            {visiblePinned.map(chip)}
 
             <QuickAddActivity />
 
             {hiddenRest.length > 0 && (
-              <button
+              <Button
+                size="sm"
                 onClick={() => setShowAll((v) => !v)}
-                className="min-h-11 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted sm:min-h-9"
+                aria-expanded={showAll}
+                icon={showAll ? "chevup" : undefined}
+                iconAfter={showAll ? undefined : "chev"}
+                className={showAll ? "" : "[&>svg]:rotate-90"}
               >
-                {showAll ? "⌃ Show fewer" : `⌄ Show all (${hiddenRest.length} more)`}
-              </button>
+                {showAll ? "Show fewer" : `Show all (${hiddenRest.length} more)`}
+              </Button>
             )}
 
-            {showAll &&
-              hiddenRest.map(({ activity, category }) => (
-                <ActivityPill
-                  key={activity.id}
-                  color={category.color}
-                  name={activity.name}
-                  active={runningSegment?.activityId === activity.id}
-                  onClick={() => start(category.id, activity.id)}
-                />
-              ))}
+            {showAll && hiddenRest.map(chip)}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-secondary text-ink-3">
             No quick-start presets yet.{" "}
             <a href="/tracking/settings" className="text-accent hover:underline">
               Add some in settings

@@ -26,4 +26,10 @@ describe("nav visibility settings", () => {
       body: { hiddenNavItems: ["trash"] },
     });
   });
+
+  it("the locked Settings row says it is always shown", async () => {
+    renderWorkspace(<NavVisibility />);
+    await screen.findByRole("switch", { name: "Hide Settings" });
+    expect(screen.getByText("Always shown")).toBeTruthy();
+  });
 });

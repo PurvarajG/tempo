@@ -3,18 +3,16 @@
 import { useState } from "react";
 
 export const labelClass =
-  "font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground";
+  "font-mono text-caption font-normal uppercase tracking-caption text-ink-3";
 
-export const inputClass =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent/20";
+// Resting hairline is line-strong (3:1 control rule). Focus is the single
+// global :focus-visible ring in globals.css; nothing here removes it.
+const controlClass =
+  "w-full rounded-row bg-surface px-3 text-body text-ink inset-ring-1 inset-ring-line-strong transition-[background-color,box-shadow] duration-150 ease-out placeholder:text-ink-3";
 
-// <select> doesn't get Chromium's "always focus-visible on click" treatment
-// that text inputs do — it's judged like a button, so a mouse click never
-// matches :focus-visible. Combined with inputClass's outline-none, that left
-// selects with no focus indicator at all outside keyboard nav. Kept on plain
-// :focus instead, same as before this phase touched anything.
-export const selectClass =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-accent/40 focus:ring-2 focus:ring-accent/20";
+export const inputClass = `${controlClass} py-2`;
+
+export const selectClass = `${controlClass} h-10`;
 
 export function Field({
   label,

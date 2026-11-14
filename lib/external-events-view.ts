@@ -8,7 +8,7 @@ import { toISODate } from "./parse";
  * the `ExternalEvent` type crosses over, and types are erased at build.
  *
  * Timed events are placed by the *viewer's* local day. The server that fetched
- * them is probably UTC, so doing this on the server would put a 9pm meeting on
+ * them is probably UTC, so doing this on the server would put a 21:00 meeting on
  * tomorrow's square.
  */
 
@@ -49,7 +49,7 @@ export function groupExternalEventsByDate(events: ExternalEvent[]): Map<string, 
   return map;
 }
 
-/** "9:00 AM – 10:30 AM", or "All day". Local to whoever is looking at it. */
+/** "09:00 to 10:30" (24-hour, via fmtTime), or "All day". Local to whoever is looking at it. */
 export function externalEventLabel(event: ExternalEvent): string {
   if (event.allDay) return "All day";
 

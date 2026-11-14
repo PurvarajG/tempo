@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import Today from "@/components/Today";
 
 export default function Page() {
-  return <Today />;
+  return (
+    <Suspense fallback={null}>
+      <Today />
+    </Suspense>
+  );
 }

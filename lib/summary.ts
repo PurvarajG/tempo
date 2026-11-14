@@ -22,6 +22,7 @@ function live(tasks: Task[]): Task[] {
 
 /** A complex task is due on every day of its range, not just its start day. */
 function isDueOn(task: Task, iso: string): boolean {
+  if (task.scheduled === null) return false;
   if (!task.isComplex) return task.scheduled === iso;
   return task.scheduled <= iso && iso <= task.finishDate!;
 }
@@ -34,6 +35,8 @@ function isDueOn(task: Task, iso: string): boolean {
  * apart lets callers that have already filtered by status avoid re-checking.
  */
 export function isOverdue(task: Task, todayISO: string): boolean {
+  // Undated (inbox) tasks have no deadline, so they are never overdue.
+  if (task.scheduled === null) return false;
   const deadline = task.isComplex ? task.finishDate! : task.scheduled;
   return deadline < todayISO;
 }

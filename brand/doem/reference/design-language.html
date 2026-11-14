@@ -1,0 +1,324 @@
+<title>Doem Design Language</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap">
+<style>
+/* Layout: one reading column; a live dummy of the app window first, then the parts a logo has to sit beside. Tokens copied from app/globals.css. */
+:root{
+  --scene-1:#b9c3ec;--scene-2:#dfe1f1;--scene-3:#f3e4d4;--scene-4:#e9c9a8;
+  --shell:rgba(246,246,243,.78);--win-edge:rgba(255,255,255,.5);
+  --surface:#ffffff;--raised:#ffffff;--sunk:#f1f1ee;
+  --ink:#141519;--ink-2:#4f5159;--ink-3:#64666d;--ink-dim:#8d8f97;
+  --line:rgba(20,21,25,.07);--line-2:rgba(20,21,25,.12);
+  --accent:#4a4ae8;--accent-ink:#ffffff;--accent-soft:rgba(74,74,232,.09);
+  --hi:#bd2f2f;--hi-bg:rgba(214,69,69,.08);--med:#8a5d00;--med-bg:rgba(201,140,20,.1);--ok:#117a45;
+  --glow-a:#4f50ee;--glow-b:#a8c8ff;
+  --shadow-sm:0 1px 1px rgba(20,20,30,.04),0 1px 3px rgba(20,20,30,.05);
+  --shadow-md:0 1px 2px rgba(20,20,30,.04),0 6px 16px -4px rgba(20,20,30,.07);
+  --shadow-win:0 30px 80px -30px rgba(30,30,80,.35),0 8px 24px -12px rgba(30,30,80,.18);
+  --font-ui:"Geist",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --font-serif:"Instrument Serif",ui-serif,Georgia,serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --scene-1:#1a1f45;--scene-2:#0f1122;--scene-3:#14121a;--scene-4:#2b1d2e;
+  --shell:rgba(18,19,24,.72);--win-edge:rgba(255,255,255,.07);
+  --surface:#17181c;--raised:#1d1e23;--sunk:#202127;
+  --ink:#ededef;--ink-2:#a6a8b0;--ink-3:#8d8f97;--ink-dim:#75777f;
+  --line:rgba(255,255,255,.06);--line-2:rgba(255,255,255,.11);
+  --accent:#8a8bff;--accent-ink:#0b0b18;--accent-soft:rgba(125,126,255,.14);
+  --hi:#f07a7a;--hi-bg:rgba(240,122,122,.12);--med:#e6b84f;--med-bg:rgba(230,184,79,.12);--ok:#4ade80;
+  --glow-a:#3c3dd6;--glow-b:#1c2f6b;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35);--shadow-md:0 1px 2px rgba(0,0,0,.4),0 10px 28px -10px rgba(0,0,0,.6);
+  --shadow-win:0 30px 80px -30px rgba(0,0,0,.7);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --scene-1:#1a1f45;--scene-2:#0f1122;--scene-3:#14121a;--scene-4:#2b1d2e;
+  --shell:rgba(18,19,24,.72);--win-edge:rgba(255,255,255,.07);
+  --surface:#17181c;--raised:#1d1e23;--sunk:#202127;
+  --ink:#ededef;--ink-2:#a6a8b0;--ink-3:#8d8f97;--ink-dim:#75777f;
+  --line:rgba(255,255,255,.06);--line-2:rgba(255,255,255,.11);
+  --accent:#8a8bff;--accent-ink:#0b0b18;--accent-soft:rgba(125,126,255,.14);
+  --hi:#f07a7a;--hi-bg:rgba(240,122,122,.12);--med:#e6b84f;--med-bg:rgba(230,184,79,.12);--ok:#4ade80;
+  --glow-a:#3c3dd6;--glow-b:#1c2f6b;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35);--shadow-md:0 1px 2px rgba(0,0,0,.4),0 10px 28px -10px rgba(0,0,0,.6);
+  --shadow-win:0 30px 80px -30px rgba(0,0,0,.7);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);font-size:14px;line-height:1.45;color:var(--ink);-webkit-font-smoothing:antialiased;
+  background:radial-gradient(70% 55% at 15% 0%,var(--scene-1) 0%,transparent 70%),radial-gradient(60% 50% at 90% 100%,var(--scene-4) 0%,transparent 70%),linear-gradient(180deg,var(--scene-2) 0%,var(--scene-3) 100%);
+  background-color:var(--scene-2);background-attachment:fixed;min-height:100vh}
+::selection{background:var(--accent-soft);color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding-block:48px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:56px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+
+/* intro */
+.intro{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end}
+.intro h1{margin:0;font-size:clamp(48px,9vw,88px);line-height:.95;font-weight:600;letter-spacing:-.045em;text-wrap:balance}
+.intro p{margin:16px 0 0;max-width:58ch;color:var(--ink-2);font-size:16px}
+.say{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+.status{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow-sm),0 0 0 1px var(--line);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.status b{width:6px;height:6px;border-radius:50%;background:var(--med)}
+
+section{display:flex;flex-direction:column;gap:20px}
+h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.03em}
+.lede{margin:-12px 0 0;color:var(--ink-2);max-width:62ch}
+
+/* dummy window */
+.stage{overflow-x:auto;padding:4px 4px 24px;margin:-4px}
+.win{width:960px;max-width:none;display:grid;grid-template-columns:232px 1fr;background:var(--shell);backdrop-filter:blur(28px) saturate(1.3);-webkit-backdrop-filter:blur(28px) saturate(1.3);border-radius:22px;border:1px solid var(--win-edge);box-shadow:var(--shadow-win);overflow:hidden;min-height:560px}
+.side{padding:14px 12px 14px;display:flex;flex-direction:column;gap:18px}
+.lights{display:flex;gap:8px;padding:2px 6px 0}
+.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}
+.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px;font-weight:600;font-size:19px;letter-spacing:-.03em}
+.slot{width:30px;height:30px;border-radius:9px;border:1.5px dashed var(--ink-dim);display:grid;place-items:center;color:var(--ink-dim);font-size:9px;font-family:var(--font-mono)}
+.brand .col{margin-left:auto;color:var(--ink-3)}
+.lbl{font-size:12px;color:var(--ink-3);padding:0 10px 6px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav span{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:12px;color:var(--ink-2);font-size:14px;letter-spacing:-.01em}
+.nav span.on{background:var(--raised);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm),0 0 0 1px var(--line)}
+.nav .n{margin-left:auto;font-size:12px;color:var(--ink-3);font-family:var(--font-mono)}
+.logo{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:600;flex:none}
+.me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:8px 6px}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#c9c9f7,#efd9c2);color:#2b2b55;display:grid;place-items:center;font-weight:600;font-size:12px}
+.me small{display:block;color:var(--ink-3);font-size:12px}
+.main{margin:8px 8px 8px 0;background:var(--surface);border-radius:18px;box-shadow:0 0 0 1px var(--line);display:flex;flex-direction:column;min-width:0}
+.top{height:56px;display:flex;align-items:center;gap:8px;padding:0 16px 0 20px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+.top b{color:var(--ink);font-weight:500}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;height:32px;width:220px;padding:0 10px;border-radius:999px;background:var(--sunk);color:var(--ink-3);font-size:12.5px}
+.search kbd{margin-left:auto;font-family:var(--font-mono);font-size:10px;padding:1px 6px;border-radius:6px;background:var(--surface);box-shadow:0 0 0 1px var(--line-2)}
+.round{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 1px var(--line-2);color:var(--ink-2)}
+.body{padding:24px 24px 24px;display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:16px;align-content:start}
+.head{grid-column:1/-1}
+.head h3{margin:0;font-size:32px;font-weight:500;letter-spacing:-.035em;line-height:1.05}
+.head h3 em{font-style:normal;color:var(--ink-dim)}
+.head p{margin:6px 0 0;color:var(--ink-3);font-size:13px}
+.card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-sm),0 0 0 1px var(--line);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.row+.row{box-shadow:0 -1px 0 var(--line)}
+.chk{width:18px;height:18px;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(127,128,138,.55);flex:none}
+.t{font-size:14px;font-weight:500;letter-spacing:-.005em}
+.meta{display:flex;gap:8px;margin-top:4px;font-size:12px;color:var(--ink-3);align-items:center}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:11.5px;font-weight:500}
+.pill.hi{background:var(--hi-bg);color:var(--hi)}.pill.med{background:var(--med-bg);color:var(--med)}
+.est{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+.upnext{box-shadow:var(--shadow-md),0 0 0 1px var(--line-2);border-radius:14px;margin:6px;background:var(--raised)}
+.tag{display:inline-block;font-size:11px;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:1px 7px;margin-bottom:4px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:500;font-size:13px;box-shadow:0 1px 2px rgba(30,30,120,.2)}
+.mom{border-radius:18px;padding:18px;color:var(--ink);background:radial-gradient(120% 90% at 0% 0%,var(--glow-a) 0%,transparent 55%),radial-gradient(100% 80% at 100% 0%,var(--glow-b) 0%,transparent 60%),var(--surface);background-blend-mode:normal;box-shadow:0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;min-height:250px}
+.mom .g{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.18);display:grid;place-items:center;color:#fff}
+.mom h4{margin:auto 0 0;font-family:var(--font-serif);font-weight:400;font-size:34px;letter-spacing:-.01em;line-height:1.1}
+.mom p{margin:0;color:var(--ink-2);font-size:13px}
+.bar{display:flex;gap:3px;height:22px;align-items:stretch}
+.bar i{flex:1;border-radius:2px;background:var(--line-2)}.bar i.f{background:var(--accent)}
+
+/* logo slots */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.spec{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-sm),0 0 0 1px var(--line);padding:20px;display:flex;flex-direction:column;gap:14px}
+.spec .show{height:150px;border-radius:12px;background:var(--sunk);display:grid;place-items:center}
+.spec h3{margin:0;font-size:15px;font-weight:500;letter-spacing:-.01em}
+.spec p{margin:0;color:var(--ink-3);font-size:13px}
+.icon1024{width:110px;height:110px;border-radius:25px;background:#141519;box-shadow:0 14px 30px -12px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:28px}
+.icon1024 i,.mark i{border-radius:50%;background:#f4f4f6}
+.icon1024 i:nth-child(4),.mark i:nth-child(4){background:var(--accent)}
+.mark{width:32px;height:32px;border-radius:10px;background:var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px}
+.mark i{background:var(--surface)}
+.lockup{display:flex;align-items:center;gap:12px;font-weight:600;font-size:20px;letter-spacing:-.03em}
+.menubar{display:flex;align-items:center;gap:14px;height:26px;padding:0 12px;border-radius:7px;background:rgba(0,0,0,.06);color:var(--ink);font-size:12px}
+:root[data-theme="dark"] .menubar{background:rgba(255,255,255,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .menubar{background:rgba(255,255,255,.08)}}
+.tmpl{width:16px;height:16px;display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px}
+.tmpl i{border-radius:50%;background:currentColor}
+
+/* palette */
+.pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{background:var(--surface);border-radius:14px;box-shadow:0 0 0 1px var(--line);overflow:hidden}
+.sw .c{height:64px;box-shadow:inset 0 -1px 0 var(--line)}
+.sw div{padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.sw b{font-weight:500;font-size:13px}
+.sw span{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
+
+/* type */
+.types{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.ty{background:var(--surface);border-radius:18px;box-shadow:0 0 0 1px var(--line);padding:20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ty .big{font-size:56px;line-height:1;letter-spacing:-.045em;font-weight:500}
+.ty .serif{font-family:var(--font-serif);font-weight:400;letter-spacing:-.01em}
+.ty .mo{font-family:var(--font-mono);letter-spacing:-.04em}
+.ty small{color:var(--ink-3);font-size:12px}
+
+/* shape */
+.shape{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.radii{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.radii div{display:flex;flex-direction:column;gap:6px;align-items:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.radii i{width:52px;height:52px;background:var(--sunk);box-shadow:inset 0 0 0 1px var(--line-2)}
+.icons{display:flex;flex-wrap:wrap;gap:10px;color:var(--ink-2)}
+.icons span{width:40px;height:40px;border-radius:10px;background:var(--sunk);display:grid;place-items:center}
+
+/* guidance */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.rules ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;color:var(--ink-2)}
+.rules li::marker{color:var(--ink-dim)}
+footer{color:var(--ink-3);font-size:12px}
+footer code{font-family:var(--font-mono)}
+
+@media (max-width:640px){.intro{grid-template-columns:1fr}.status{justify-self:start}}
+</style>
+
+<div class="wrap">
+
+  <header class="intro">
+    <div>
+      <h1>Doem</h1>
+      <p>A calm Mac app for planning one day at a time: what to do today, what is up next, how the time went. This page is a stand-in of the app with the new name, so you can see the visual language the new logo has to live in. <span class="say">Said DOH-em. From "do 'em" and carpe diem.</span></p>
+    </div>
+    <span class="status"><b></b>Name decided, logo in progress</span>
+  </header>
+
+  <section aria-labelledby="h-win">
+    <h2 id="h-win">The app, with the new name</h2>
+    <p class="lede">A dummy of the Today screen. The dashed square in the sidebar is where the new mark goes. Everything else is how the app looks now. Switch your system to dark mode to see the dark version.</p>
+    <div class="stage">
+      <div class="win" role="img" aria-label="Dummy Doem app window showing the Today screen">
+        <aside class="side">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="brand"><span class="slot">mark</span>Doem
+            <span class="col"><svg class="i" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/></svg></span></div>
+          <div>
+            <div class="lbl">Main</div>
+            <div class="nav">
+              <span class="on"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>Today<em class="n" style="font-style:normal">4</em></span>
+              <span><svg class="i" viewBox="0 0 16 16"><path d="M2 9l2-6h8l2 6v4H2z"/><path d="M2 9h3.5l1 1.5h3l1-1.5H14"/></svg>Inbox</span>
+              <span><svg class="i" viewBox="0 0 16 16"><path d="M3 4h10M3 8h7M3 12h4"/></svg>Next 7 days<em class="n" style="font-style:normal">12</em></span>
+              <span><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10.5" rx="2"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>Calendar</span>
+              <span><svg class="i" viewBox="0 0 16 16"><path d="M4 13V9M8 13V4M12 13V7"/></svg>Tracking</span>
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Projects</div>
+            <div class="nav">
+              <span><i class="logo" style="background:#5b5ce6">S</i>Studio site<em class="n" style="font-style:normal">6</em></span>
+              <span><i class="logo" style="background:#c0457a">H</i>Home<em class="n" style="font-style:normal">3</em></span>
+            </div>
+          </div>
+          <div class="me"><span class="av">Y</span><div>You<small>Settings &amp; sync</small></div></div>
+        </aside>
+        <div class="main">
+          <div class="top">Main <span>›</span> <b>Today</b>
+            <span class="search"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>Search tasks, projects…<kbd>⌘ K</kbd></span>
+            <span class="round"><svg class="i" viewBox="0 0 16 16"><path d="M4 11V7.5a4 4 0 018 0V11l1 1.5H3z"/><path d="M6.5 14h3"/></svg></span>
+          </div>
+          <div class="body">
+            <div class="head"><h3>Friday <em>13 November</em></h3><p>4 tasks left, and 5h 20m still free before 18:00.</p></div>
+            <div class="card">
+              <div class="upnext row"><span class="chk"></span><div><span class="tag">Up next</span><div class="t">Send the venue a final headcount</div><div class="meta"><span class="pill hi">High</span>Studio site · Due 14:30</div></div><span style="margin-left:auto" class="btn"><svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px;fill:currentColor;stroke:none"><path d="M5 3.5l7 4.5-7 4.5z"/></svg>Start</span></div>
+              <div class="row"><span class="chk"></span><div><div class="t">Review the homepage copy</div><div class="meta"><span class="pill med">Medium</span>Studio site</div></div><span class="est">45m</span></div>
+              <div class="row"><span class="chk"></span><div><div class="t">Book the boiler service</div><div class="meta">Home · Due 17:00</div></div><span class="est">15m</span></div>
+              <div class="row"><span class="chk"></span><div><div class="t">Sort the receipts folder</div><div class="meta">Home</div></div><span class="est">30m</span></div>
+            </div>
+            <div class="mom">
+              <span class="g"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg></span>
+              <h4>Momentum</h4>
+              <p>2 done. The venue headcount is next.</p>
+              <div class="bar" aria-hidden="true"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-slots">
+    <h2 id="h-slots">Where the logo appears</h2>
+    <p class="lede">The new mark has to work at each of these sizes. The dot grid shown is the current placeholder mark, kept only so the slots are not empty.</p>
+    <div class="slots">
+      <div class="spec"><div class="show"><div class="icon1024"><i></i><i></i><i></i><i></i></div></div><h3>App icon</h3><p>1024 × 1024 macOS squircle, also used for the Dock and Finder. Must still read at 32 px.</p></div>
+      <div class="spec"><div class="show"><div class="lockup"><span class="mark"><i></i><i></i><i></i><i></i></span>Doem</div></div><h3>Sidebar lockup</h3><p>32 px mark on a 10 px-radius tile, next to the word in Geist SemiBold 20 px, −0.03 em tracking.</p></div>
+      <div class="spec"><div class="show"><div class="menubar"><span style="font-weight:600"></span><span class="tmpl" aria-label="menu bar mark"><i></i><i></i><i></i><i></i></span><span>Wi-Fi</span><span class="mono">14:05</span></div></div><h3>Menu bar and tray</h3><p>16 px, one colour (a macOS template image). No accent, no fill tile. Shapes only.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-pal">
+    <h2 id="h-pal">Colour</h2>
+    <p class="lede">Near-neutral greys with a faint cool tint, one indigo accent used sparingly, and a soft blue-to-peach scene behind the glass window.</p>
+    <div class="pal">
+      <div class="sw"><div class="c" style="background:#141519"></div><div><b>Ink</b><span>#141519 · dark #EDEDEF</span></div></div>
+      <div class="sw"><div class="c" style="background:#4a4ae8"></div><div><b>Accent</b><span>#4A4AE8 · dark #8A8BFF</span></div></div>
+      <div class="sw"><div class="c" style="background:#ffffff"></div><div><b>Surface</b><span>#FFFFFF · dark #17181C</span></div></div>
+      <div class="sw"><div class="c" style="background:#f1f1ee"></div><div><b>Sunk</b><span>#F1F1EE · dark #202127</span></div></div>
+      <div class="sw"><div class="c" style="background:#64666d"></div><div><b>Ink 3</b><span>#64666D · dark #8D8F97</span></div></div>
+      <div class="sw"><div class="c" style="background:linear-gradient(135deg,#b9c3ec,#dfe1f1 45%,#f3e4d4 75%,#e9c9a8)"></div><div><b>Scene</b><span>#B9C3EC → #E9C9A8</span></div></div>
+      <div class="sw"><div class="c" style="background:linear-gradient(135deg,#4f50ee,#a8c8ff)"></div><div><b>Glow</b><span>#4F50EE → #A8C8FF</span></div></div>
+      <div class="sw"><div class="c" style="background:#117a45"></div><div><b>Running / ok</b><span>#117A45 · dark #4ADE80</span></div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-type">
+    <h2 id="h-type">Type</h2>
+    <p class="lede">One sans for everything, tight tracking at large sizes. Mono only for numbers and times. One serif, used once, for the Momentum heading.</p>
+    <div class="types">
+      <div class="ty"><span class="big">Doem</span><small>Geist · 400 / 500 / 600 · headings −0.035 to −0.045 em</small></div>
+      <div class="ty"><span class="big mo" style="font-size:44px">1h 37m</span><small>Geist Mono · numbers, estimates, clock</small></div>
+      <div class="ty"><span class="big serif" style="font-size:52px">Momentum</span><small>Instrument Serif · one place only</small></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-shape">
+    <h2 id="h-shape">Shape and line</h2>
+    <p class="lede">Soft, consistent corners that grow with the size of the object. Icons are thin, round-capped outlines on a 16 px grid.</p>
+    <div class="shape">
+      <div class="ty">
+        <div class="radii">
+          <div><i style="border-radius:6px;width:28px;height:28px"></i>6</div>
+          <div><i style="border-radius:10px;width:36px;height:36px"></i>10</div>
+          <div><i style="border-radius:12px"></i>12</div>
+          <div><i style="border-radius:16px"></i>16</div>
+          <div><i style="border-radius:18px;width:64px;height:64px"></i>18</div>
+          <div><i style="border-radius:22px;width:72px;height:72px"></i>22</div>
+        </div>
+        <small>Radii in px: checkbox, logo tile, row, KPI, card, window</small>
+      </div>
+      <div class="ty">
+        <div class="icons">
+          <span><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg></span>
+          <span><svg class="i" viewBox="0 0 16 16"><path d="M2 9l2-6h8l2 6v4H2z"/><path d="M2 9h3.5l1 1.5h3l1-1.5H14"/></svg></span>
+          <span><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10.5" rx="2"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg></span>
+          <span><svg class="i" viewBox="0 0 16 16"><path d="M4 13V9M8 13V4M12 13V7"/></svg></span>
+          <span><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg></span>
+          <span><svg class="i" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span>
+        </div>
+        <small>1.5 px stroke, round caps and joins, no fills</small>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-rules">
+    <h2 id="h-rules">What the new mark should fit</h2>
+    <div class="rules">
+      <div class="ty"><h3 style="margin:0;font-size:15px;font-weight:500">Matches the app</h3>
+        <ul>
+          <li>Simple geometry with rounded ends, the same family as the 1.5 px icons.</li>
+          <li>Ink and white, with at most one touch of the indigo accent.</li>
+          <li>Calm, not loud. The app is a quiet desk, not a productivity sprint.</li>
+          <li>Holds up as one flat colour at 16 px for the menu bar.</li>
+        </ul></div>
+      <div class="ty"><h3 style="margin:0;font-size:15px;font-weight:500">Ideas the name gives you</h3>
+        <ul>
+          <li>"Do" and "diem": a day, a mark ticked off, a sun or circle completed.</li>
+          <li>One item picked from a set, as in Up next.</li>
+          <li>The lowercase <span class="mono">d</span> or the double o-shape in the wordmark.</li>
+        </ul></div>
+      <div class="ty"><h3 style="margin:0;font-size:15px;font-weight:500">Avoid</h3>
+        <ul>
+          <li>Clocks and metronomes. Those belonged to the old name.</li>
+          <li>Gradients inside the mark, or thin hairlines that vanish at small sizes.</li>
+          <li>Latin flourishes, laurels or serif crests. The Latin is in the name, not the look.</li>
+        </ul></div>
+    </div>
+  </section>
+
+  <footer>Dummy reference page. Colours, type and radii are copied from the app's <code>app/globals.css</code> as of 13 November 2026. The tasks shown are examples, not your data.</footer>
+</div>

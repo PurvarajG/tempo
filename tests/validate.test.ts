@@ -83,3 +83,87 @@ test("bodies must be objects", () => {
   assert.throws(() => v.body([1, 2]), v.Invalid);
   assert.throws(() => v.body(null), v.Invalid);
 });
+
+test("nullable and optional dates", () => {
+  assert.equal(v.nullableIsoDate(null, "scheduled"), null);
+  assert.equal(v.nullableIsoDate("2026-03-01", "scheduled"), "2026-03-01");
+  assert.throws(() => v.nullableIsoDate(undefined, "scheduled"), v.Invalid);
+  assert.throws(() => v.nullableIsoDate("2026-02-30", "scheduled"), v.Invalid);
+  assert.equal(v.optionalNullableIsoDate(undefined, "startOn"), undefined);
+  assert.equal(v.optionalNullableIsoDate(null, "startOn"), null);
+  assert.equal(v.optionalNullableIsoDate("2026-03-01", "startOn"), "2026-03-01");
+  assert.throws(() => v.optionalNullableIsoDate("nope", "startOn"), v.Invalid);
+});
+
+test("recurrence validates freq, interval and from", () => {
+  assert.deepEqual(v.recurrence({ freq: "daily" }, "recurrence"), { freq: "daily", interval: 1 });
+  assert.deepEqual(v.recurrence({ freq: "weekly", interval: 2, from: "done" }, "recurrence"), {
+    freq: "weekly",
+    interval: 2,
+    from: "done",
+  });
+  assert.deepEqual(v.recurrence({ freq: "monthly", interval: 365, from: "schedule" }, "r"), {
+    freq: "monthly",
+    interval: 365,
+    from: "schedule",
+  });
+  assert.throws(() => v.recurrence({ freq: "yearly" }, "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence({ freq: "daily", interval: 0 }, "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence({ freq: "daily", interval: 366 }, "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence({ freq: "daily", interval: 1.5 }, "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence({ freq: "daily", from: "never" }, "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence("daily", "recurrence"), v.Invalid);
+  assert.throws(() => v.recurrence(null, "recurrence"), v.Invalid);
+});
+
+test("energy is null or 1 to 3", () => {
+  assert.equal(v.energy(null, "energy"), null);
+  assert.equal(v.energy(1, "energy"), 1);
+  assert.equal(v.energy(3, "energy"), 3);
+  assert.throws(() => v.energy(0, "energy"), v.Invalid);
+  assert.throws(() => v.energy(4, "energy"), v.Invalid);
+  assert.throws(() => v.energy(2.5, "energy"), v.Invalid);
+  assert.throws(() => v.energy("2", "energy"), v.Invalid);
+  assert.throws(() => v.energy(undefined, "energy"), v.Invalid);
+});
+
+test("weekday is a whole 0-6", () => {
+  assert.equal(v.weekday(0, "day"), 0);
+  assert.equal(v.weekday(6, "day"), 6);
+  assert.throws(() => v.weekday(7, "day"), v.Invalid);
+  assert.throws(() => v.weekday(-1, "day"), v.Invalid);
+  assert.throws(() => v.weekday(1.5, "day"), v.Invalid);
+  assert.throws(() => v.weekday("1", "day"), v.Invalid);
+  assert.throws(() => v.weekday(null, "day"), v.Invalid);
+});
+
+test("oneOf is a closed set", () => {
+  assert.equal(v.oneOf("dmy", "dateOrder", ["dmy", "mdy"] as const), "dmy");
+  assert.throws(() => v.oneOf("ymd", "dateOrder", ["dmy", "mdy"] as const), v.Invalid);
+  assert.throws(() => v.oneOf(1, "dateOrder", ["dmy", "mdy"] as const), v.Invalid);
+  assert.throws(() => v.oneOf(null, "dateOrder", ["dmy", "mdy"] as const), v.Invalid);
+});
+
+test("nullablePositiveInt allows null or 1..max", () => {
+  assert.equal(v.nullablePositiveInt(null, "wip", 50), null);
+  assert.equal(v.nullablePositiveInt(1, "wip", 50), 1);
+  assert.equal(v.nullablePositiveInt(50, "wip", 50), 50);
+  assert.throws(() => v.nullablePositiveInt(0, "wip", 50), v.Invalid);
+  assert.throws(() => v.nullablePositiveInt(51, "wip", 50), v.Invalid);
+  assert.throws(() => v.nullablePositiveInt(2.5, "wip", 50), v.Invalid);
+  assert.throws(() => v.nullablePositiveInt("3", "wip", 50), v.Invalid);
+  assert.throws(() => v.nullablePositiveInt(undefined, "wip", 50), v.Invalid);
+});
+
+test("shortcut is an accelerator string", () => {
+  assert.equal(v.shortcut("Control+Alt+Space", "shortcut"), "Control+Alt+Space");
+  assert.equal(v.shortcut("CommandOrControl+Shift+K", "shortcut"), "CommandOrControl+Shift+K");
+  assert.equal(v.shortcut("F5", "shortcut"), "F5");
+  assert.throws(() => v.shortcut("", "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut("   ", "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut("Control + Alt", "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut("Control+", "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut("Ctrl+Alt+$", "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut("A".repeat(61), "shortcut"), v.Invalid);
+  assert.throws(() => v.shortcut(5, "shortcut"), v.Invalid);
+});

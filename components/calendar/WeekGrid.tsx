@@ -1,23 +1,33 @@
 "use client";
 
+import { useRef } from "react";
 import { useTasks } from "@/lib/store-context";
-import type { CalendarDay } from "@/lib/calendar";
-import { externalEventLabel } from "@/lib/external-events-view";
+import { WEEKDAY_LABELS, type CalendarDay } from "@/lib/calendar";
+import { layoutLanes, minutesToHHMM, plannedBlocks, trackedBlocks, type PlacedBlock } from "@/lib/calendar-blocks";
+import { fmtDate, fmtTime, fmtWeekday } from "@/lib/format";
 import type { ExternalEvent } from "@/lib/icloud";
 import { useNow } from "@/lib/useNow";
 import { projectColorVar, type Task } from "@/lib/types";
-import { dayHeight, DAY_WINDOW_HOURS, HourGridBox, HourRail, instantToPx, timeToPx } from "../time/HourGrid";
+import Card from "../ui/Card";
+import { CAL_PX_PER_HOUR, DAY_WINDOW_HOURS, HourRail, useScrollToHour } from "../time/HourGrid";
 import { useDragReschedule } from "./useDragReschedule";
 
-const PX_PER_HOUR = 36;
-const WINDOW_HOURS = DAY_WINDOW_HOURS;
-const HEIGHT = dayHeight(PX_PER_HOUR);
+const PX = CAL_PX_PER_HOUR;
+const BODY_HEIGHT = DAY_WINDOW_HOURS * PX;
+const GRID = "grid grid-cols-[64px_repeat(7,minmax(0,1fr))]";
+const SHORT_MINUTES = 42;
+const EXTERNAL_DEFAULT_MINUTES = 30;
+
+function minutesOfDay(iso: string, dayISO: string): number {
+  const [y, m, d] = dayISO.split("-").map(Number);
+  const dayStart = new Date(y, m - 1, d).getTime();
+  return Math.round((new Date(iso).getTime() - dayStart) / 60_000);
+}
 
 /**
- * Seven hour-gridded day columns sharing one hour rail. Uses the same
- * `HourRail`/`HourGridBox` primitive as the tracking ribbon and `DayGrid`,
- * and the `useDragReschedule` hook shared with `MonthGrid` so dropping a task
- * on a column behaves identically to dropping it on a month square.
+ * The week calendar from soft.html `.calcard`: a head row, an optional
+ * all-day strip and one scrolling body with a 64px hour rail and seven
+ * flush hairline columns. Planned blocks are solid, tracked blocks striped.
  */
 export default function WeekGrid({
   days,
@@ -35,178 +45,225 @@ export default function WeekGrid({
   onSelectDay: (iso: string) => void;
   onAnnounce: (message: string) => void;
 }) {
-  const { projects, openTask } = useTasks();
+  const { tasks, projects, openTask, timeEntries, running, settings } = useTasks();
   const now = useNow();
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { dragTaskId, overDate, startDrag, endDrag, dragOver, dragLeave, drop } = useDragReschedule(
     tasksByDate,
     onAnnounce,
   );
 
-  const colorOf = (task: Task) => {
-    const color = projects.find((p) => p.id === task.projectId)?.color;
-    return color ? projectColorVar(color) : "var(--color-muted-foreground)";
-  };
+  // A quarter hour of lead so the first hour label is not cut by the top edge.
+  const startHour = settings?.wakingStartHour;
+  useScrollToHour(bodyRef, typeof startHour === "number" ? Math.max(0, startHour - 0.25) : null, PX, days[0]?.iso);
 
-  const nowOffset = now ? instantToPx(now.toISOString(), PX_PER_HOUR) : null;
+  const colourOf = (projectId: string | null | undefined) => {
+    const color = projects.find((p) => p.id === projectId)?.color;
+    return color ? projectColorVar(color) : "var(--color-ink-3)";
+  };
+  const cssVar = (projectId: string | null | undefined) => ({ "--c": colourOf(projectId) }) as React.CSSProperties;
+
+  const dropProps = (iso: string) => ({
+    onDragOver: (e: React.DragEvent) => dragOver(e, iso),
+    onDragLeave: () => dragLeave(iso),
+    onDrop: (e: React.DragEvent) => drop(e, iso),
+  });
+
+  const hasAllDay = days.some((day) => {
+    const untimed = (tasksByDate.get(day.iso) ?? []).some((t) => !t.dueTime);
+    const allDayExt = (externalByDate?.get(day.iso) ?? []).some((e) => e.allDay);
+    return untimed || allDayExt;
+  });
+
+  const nowMin = now ? now.getHours() * 60 + now.getMinutes() : null;
+
+  function renderBlock(day: CalendarDay, b: PlacedBlock) {
+    const height = Math.max(18, ((b.endMin - b.startMin) / 60) * PX - 4);
+    const short = b.endMin - b.startMin < SHORT_MINUTES;
+    const tracked = b.kind === "tracked";
+    const classes = ["cal-ev", tracked ? "is-tracked" : "", short ? "is-short" : "", b.done ? "is-done" : ""]
+      .filter(Boolean)
+      .join(" ");
+    const style: React.CSSProperties = {
+      ...cssVar(b.projectId),
+      top: (b.startMin / 60) * PX + 2,
+      height,
+      left: `calc(${(b.lane / b.lanes) * 100}% + 4px)`,
+      width: `calc(${100 / b.lanes}% - 8px)`,
+      right: "auto",
+    };
+    const content = (
+      <>
+        <span className="cal-ev-title">{b.title}</span>
+        {!short && (
+          <span className="cal-ev-time block">
+            {fmtTime(minutesToHHMM(b.startMin))} to {b.running ? "now" : fmtTime(minutesToHHMM(b.endMin))}
+          </span>
+        )}
+      </>
+    );
+    if (tracked) {
+      const taskId = b.taskId;
+      if (taskId) {
+        return (
+          <button key={b.key} type="button" title={b.title} className={classes} style={style} onClick={() => openTask(taskId)}>
+            {content}
+          </button>
+        );
+      }
+      return (
+        <div key={b.key} title={b.title} className={classes} style={style}>
+          {content}
+        </div>
+      );
+    }
+    return (
+      <button
+        key={b.key}
+        type="button"
+        draggable
+        title={b.title}
+        className={`${classes} ${dragTaskId === b.taskId ? "opacity-40" : ""}`}
+        style={style}
+        onDragStart={(e) => b.taskId && startDrag(e, b.taskId)}
+        onDragEnd={endDrag}
+        onClick={() => b.taskId && openTask(b.taskId)}
+      >
+        {content}
+      </button>
+    );
+  }
 
   return (
-    // Padding lives on the scroll container itself, not on the flex row
-    // inside it: `sticky left-0` positions against the nearest scrolling
-    // ancestor's PADDING box, so padding on an inner element left a gap
-    // between that box and where the row's content actually starts — a
-    // sliver of the first column slid through underneath the sticky rail
-    // whenever the week was scrolled. Padding here keeps the rail flush.
-    <div className="overflow-x-auto rounded-xl border border-border bg-card p-1.5">
-      <div className="flex min-w-[808px] gap-1.5">
-        {/* Sticky so the hour labels stay put while the columns scroll
-            horizontally underneath — at the app's 900px window minimum this
-            grid never fits without scrolling, and Thu–Sat would otherwise be
-            unreadable once the rail scrolls off with them. */}
-        <div className="sticky left-0 z-10 flex shrink-0 flex-col bg-card">
-          <div className="h-14" />
-          <HourRail windowStartHour={0} windowHours={WINDOW_HOURS} height={HEIGHT} />
-        </div>
-
-        {days.map((day) => {
-          const dayTasks = tasksByDate.get(day.iso) ?? [];
-          const timed = dayTasks.filter((t) => t.dueTime);
-          const untimed = dayTasks.filter((t) => !t.dueTime);
-          const dayExternal = externalByDate?.get(day.iso) ?? [];
-          const timedExternal = dayExternal.filter((e) => !e.allDay);
-          const allDayExternal = dayExternal.filter((e) => e.allDay);
+    <Card clip className="flex min-h-0 flex-1 flex-col">
+      <div className={`${GRID} shrink-0 shadow-[0_1px_0_var(--color-line)]`}>
+        <div />
+        {days.map((day, i) => {
+          const count = (tasksByDate.get(day.iso) ?? []).length;
           const isToday = day.iso === todayISO;
-
           return (
-            <div
+            <button
               key={day.iso}
-              onDragOver={(e) => dragOver(e, day.iso)}
-              onDragLeave={() => dragLeave(day.iso)}
-              onDrop={(e) => drop(e, day.iso)}
-              className={`flex min-w-0 flex-1 flex-col rounded-lg transition-colors ${
-                overDate === day.iso ? "bg-accent/10" : ""
-              }`}
+              type="button"
+              onClick={() => onSelectDay(day.iso)}
+              aria-label={`${fmtDate(day.iso, todayISO)}, ${count} ${count === 1 ? "task" : "tasks"}`}
+              className="flex flex-col items-center px-2 py-3 text-center text-meta text-ink-3 hover:bg-sunk"
+              {...dropProps(day.iso)}
             >
-              <button
-                onClick={() => onSelectDay(day.iso)}
-                aria-label={`${day.iso}, ${dayTasks.length} ${dayTasks.length === 1 ? "task" : "tasks"}`}
-                className={`flex h-14 flex-col items-center justify-center rounded-lg px-1 py-1 text-center hover:bg-muted ${
-                  isToday ? "bg-accent/10" : ""
-                }`}
+              <span className="block">{WEEKDAY_LABELS[i] ?? fmtWeekday(day.iso, "short")}</span>
+              <span
+                className={
+                  isToday
+                    ? "mx-auto mt-0.5 block size-8 rounded-full bg-accent text-cal-today text-accent-ink"
+                    : "mt-0.5 block text-cal-day text-ink"
+                }
               >
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-                  {new Date(`${day.iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" })}
-                </span>
-                <span
-                  className={`font-mono text-[13px] ${isToday ? "font-semibold text-accent" : "text-foreground"}`}
-                >
-                  {day.dayOfMonth}
-                </span>
-              </button>
-
-              <div className="min-h-6 space-y-0.5 px-0.5 pb-1">
-                {untimed.slice(0, 2).map((task) => (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={(e) => startDrag(e, task.id)}
-                    onDragEnd={endDrag}
-                    className={dragTaskId === task.id ? "opacity-40" : ""}
-                  >
-                    <button
-                      onClick={() => openTask(task.id)}
-                      title={task.title}
-                      className={`flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-tight hover:bg-muted ${
-                        task.status === "done" ? "text-muted-foreground line-through" : ""
-                      }`}
-                    >
-                      <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: colorOf(task) }} />
-                      <span className="truncate">{task.title}</span>
-                    </button>
-                  </div>
-                ))}
-                {untimed.length > 2 && (
-                  <button onClick={() => onSelectDay(day.iso)} className="px-1 font-mono text-[9px] text-muted-foreground hover:text-foreground">
-                    +{untimed.length - 2} more
-                  </button>
-                )}
-                {allDayExternal.slice(0, 1).map((event) => (
-                  <div
-                    key={event.id}
-                    data-external-event
-                    title={`${event.title} — All day (Apple Calendar)`}
-                    className="truncate rounded border border-dashed border-border px-1 py-0.5 text-[10px] leading-tight text-muted-foreground"
-                  >
-                    {event.title}
-                  </div>
-                ))}
-                {allDayExternal.length > 1 && (
-                  <button
-                    onClick={() => onSelectDay(day.iso)}
-                    className="px-1 font-mono text-[9px] text-muted-foreground hover:text-foreground"
-                  >
-                    +{allDayExternal.length - 1} more from Apple Calendar
-                  </button>
-                )}
-              </div>
-
-              <HourGridBox
-                windowHours={WINDOW_HOURS}
-                height={HEIGHT}
-                nowOffset={isToday ? nowOffset : null}
-                aria-label={`${day.iso} hours`}
-                // HourGridBox carries `flex-1` for its other caller (HourGrid,
-                // a flex ROW, where that sizes its width). Here it sits in a
-                // flex COLUMN, so `flex: 1 1 0%` applied to its HEIGHT
-                // instead — zeroing the flex-basis and collapsing the inline
-                // `height: 864px` down to whatever the column had left, which
-                // is why the week showed only the 00:00 row. Restoring
-                // auto-basis/no-grow-or-shrink lets the day's real height win.
-                className={`shrink-0 grow-0 basis-auto ${overDate === day.iso ? "border-accent" : ""}`}
-              >
-                {timed.map((task) => {
-                  const top = timeToPx(task.dueTime as string, PX_PER_HOUR);
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => startDrag(e, task.id)}
-                      onDragEnd={endDrag}
-                      className={`absolute inset-x-0.5 ${dragTaskId === task.id ? "opacity-40" : ""}`}
-                      style={{ top }}
-                    >
-                      <button
-                        onClick={() => openTask(task.id)}
-                        title={task.title}
-                        className={`flex w-full items-center gap-1 truncate rounded border-l-[3px] py-0.5 pl-1.5 pr-1 text-left text-[10px] font-medium text-foreground hover:opacity-85 ${
-                          task.status === "done" ? "opacity-55 line-through" : ""
-                        }`}
-                        style={{
-                          borderLeftColor: colorOf(task),
-                          backgroundColor: `color-mix(in srgb, ${colorOf(task)} 14%, var(--color-card))`,
-                        }}
-                      >
-                        <span className="truncate">{task.title}</span>
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {timedExternal.map((event) => (
-                  <div
-                    key={event.id}
-                    data-external-event
-                    title={`${event.title} — ${externalEventLabel(event)} (Apple Calendar)`}
-                    className="absolute inset-x-0.5 truncate rounded border border-dashed border-border bg-card px-1 py-0.5 text-[10px] leading-tight text-muted-foreground"
-                    style={{ top: instantToPx(event.start, PX_PER_HOUR) }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-              </HourGridBox>
-            </div>
+                {day.dayOfMonth}
+              </span>
+            </button>
           );
         })}
       </div>
-    </div>
+
+      {hasAllDay && (
+        <div className={`${GRID} shrink-0 shadow-[0_1px_0_var(--color-line)]`}>
+          <div />
+          {days.map((day) => {
+            const untimed = (tasksByDate.get(day.iso) ?? []).filter((t) => !t.dueTime);
+            const allDayExt = (externalByDate?.get(day.iso) ?? []).filter((e) => e.allDay);
+            const shownExt = allDayExt.slice(0, 1);
+            const more = Math.max(0, untimed.length - 2) + Math.max(0, allDayExt.length - 1);
+            return (
+              <div key={day.iso} className="min-w-0 space-y-1 p-1" {...dropProps(day.iso)}>
+                {untimed.slice(0, 2).map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    draggable
+                    title={task.title}
+                    className={`cal-ev is-flow is-short ${task.status === "done" ? "is-done" : ""} ${
+                      dragTaskId === task.id ? "opacity-40" : ""
+                    }`}
+                    style={cssVar(task.projectId)}
+                    onDragStart={(e) => startDrag(e, task.id)}
+                    onDragEnd={endDrag}
+                    onClick={() => openTask(task.id)}
+                  >
+                    <span className="cal-ev-title">{task.title}</span>
+                  </button>
+                ))}
+                {shownExt.map((event) => (
+                  <div
+                    key={event.id}
+                    data-external-event
+                    title={`${event.title}, all day, Apple Calendar`}
+                    className="cal-ev is-flow is-short is-external"
+                  >
+                    <span className="cal-ev-title">{event.title}</span>
+                  </div>
+                ))}
+                {more > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectDay(day.iso)}
+                    className="px-1 text-caption text-ink-3 hover:text-ink"
+                  >
+                    +{more} more
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className={`${GRID} relative`}>
+          <HourRail variant="calendar" windowStartHour={0} windowHours={DAY_WINDOW_HOURS} height={BODY_HEIGHT} className="w-16 shrink-0" />
+          {days.map((day) => {
+            const dayTasks = tasksByDate.get(day.iso) ?? [];
+            const blocks = layoutLanes([
+              ...plannedBlocks(day.iso, dayTasks),
+              ...(now ? trackedBlocks(day.iso, timeEntries, running, tasks, now) : []),
+            ]);
+            const timedExternal = (externalByDate?.get(day.iso) ?? []).filter((e) => !e.allDay);
+            return (
+              <div
+                key={day.iso}
+                role="group"
+                aria-label={`${fmtDate(day.iso, todayISO)} hours`}
+                className={`cal-col ${day.isWeekend ? "is-weekend" : ""} ${overDate === day.iso ? "is-drop" : ""}`}
+                style={{ height: BODY_HEIGHT }}
+                {...dropProps(day.iso)}
+              >
+                {blocks.map((b) => renderBlock(day, b))}
+                {timedExternal.map((event) => {
+                  const start = Math.max(0, minutesOfDay(event.start, day.iso));
+                  const rawEnd = minutesOfDay(event.end, day.iso);
+                  const len = rawEnd > start ? Math.min(1440, rawEnd) - start : EXTERNAL_DEFAULT_MINUTES;
+                  return (
+                    <div
+                      key={event.id}
+                      data-external-event
+                      title={event.title}
+                      className="cal-ev is-external is-short"
+                      style={{
+                        top: (start / 60) * PX + 2,
+                        height: Math.max(18, (len / 60) * PX - 4),
+                      }}
+                    >
+                      <span className="cal-ev-title">{event.title}</span>
+                    </div>
+                  );
+                })}
+                {day.iso === todayISO && nowMin !== null && (
+                  <div className="cal-nowline" style={{ top: (nowMin / 60) * PX }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
   );
 }

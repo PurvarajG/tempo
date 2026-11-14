@@ -1,11 +1,13 @@
 "use client";
 
+import Card, { CardHeader } from "@/components/ui/Card";
+import Icon from "@/components/ui/Icon";
 import Panel from "@/components/ui/Panel";
 
 /**
- * A disclosure panel for a page's side rail — a thin wrapper over the shared
- * `Panel` chrome (see components/ui/Panel.tsx), which already implements the
- * quiet dashed-line empty state this component originally introduced.
+ * A disclosure card for a page's side rail. Drawn as a v2 card with the shared
+ * card header; the chevron at the right toggles it. The `empty` state still
+ * uses the quiet dashed line from `Panel`.
  */
 export default function RailPanel({
   title,
@@ -23,15 +25,33 @@ export default function RailPanel({
   emptyText?: string;
   children: React.ReactNode;
 }) {
+  if (empty) {
+    return (
+      <Panel title={title} collapsed={collapsed} onToggleCollapse={onToggleCollapse} empty emptyText={emptyText}>
+        {children}
+      </Panel>
+    );
+  }
   return (
-    <Panel
-      title={title}
-      collapsed={collapsed}
-      onToggleCollapse={onToggleCollapse}
-      empty={empty}
-      emptyText={emptyText}
-    >
-      {children}
-    </Panel>
+    <Card aria-labelledby={`rail-panel-${title}`}>
+      <CardHeader
+        titleId={`rail-panel-${title}`}
+        title={title}
+        icon={<Icon name="paper" size={16} />}
+        className={collapsed ? "pb-4" : undefined}
+        action={
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+            className="grid size-7 place-items-center rounded-tile text-ink-3 transition-colors duration-150 ease-out hover:bg-sunk hover:text-ink"
+          >
+            <Icon name="chev" size={16} className={collapsed ? "" : "rotate-90"} />
+          </button>
+        }
+      />
+      {!collapsed && <div className="px-4 pb-4">{children}</div>}
+    </Card>
   );
 }

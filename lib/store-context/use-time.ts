@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  acknowledgeFocusSession,
+  extendFocusSession,
+  startFocusSession,
+  type FocusSession,
+} from "../focus-session";
 import type { TimeEntry } from "../types";
 import { request, RequestFailed } from "./request";
 
@@ -31,12 +37,55 @@ export type TimeApi = {
     patch: { startedAt?: string; minutes?: number; note?: string },
   ) => Promise<void>;
   deleteTimeEntry: (id: string) => Promise<void>;
+  /** The focus session on the running task, or null. */
+  focus: FocusSession | null;
+  startFocus: (task: {
+    id: string;
+    title: string;
+    minutes: number | null | undefined;
+  }) => Promise<void>;
+  /** +15m from the Time's up card. */
+  extendFocus: () => void;
+  /** Keep going: the timer keeps running, the card shows one neutral over line. */
+  keepGoing: () => void;
+  /** Drops the countdown; the timer keeps running. */
+  endFocus: () => void;
 };
 
 export function useTime(onError: (message: string) => void): TimeApi {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-  const [running, setRunning] = useState<TimeEntry | null>(null);
+  const [running, setRunningState] = useState<TimeEntry | null>(null);
   const [timerConflict, setTimerConflict] = useState<TimerConflictState | null>(null);
+  const [session, setSession] = useState<FocusSession | null>(null);
+  const firedRef = useRef<Set<string>>(new Set());
+  const runningRef = useRef<TimeEntry | null>(null);
+
+  /** Every change to `running` goes through here, so a session that no longer matches it is dropped in the same event. */
+  const setRunning = useCallback<TimeApi["setRunning"]>((action) => {
+    const next = typeof action === "function" ? action(runningRef.current) : action;
+    runningRef.current = next;
+    setRunningState(next);
+    setSession((s) => (s && next?.taskId === s.taskId ? s : null));
+  }, []);
+  const focus = session && running?.taskId === session.taskId ? session : null;
+
+  // One native nudge per run-out. The timer card works out its own phase from the clock.
+  const focusTaskId = focus?.taskId;
+  const focusEndsAt = focus?.endsAt;
+  const focusTitle = focus?.title;
+  const focusAcknowledged = focus?.acknowledged;
+  useEffect(() => {
+    if (!focusTaskId || !focusEndsAt || focusAcknowledged) return;
+    const key = `${focusTaskId}|${focusEndsAt}`;
+    if (firedRef.current.has(key)) return;
+    const wait = Math.max(0, new Date(focusEndsAt).getTime() - Date.now());
+    const id = setTimeout(() => {
+      if (firedRef.current.has(key)) return;
+      firedRef.current.add(key);
+      window.doem?.attention?.({ title: "Time's up", body: focusTitle });
+    }, wait);
+    return () => clearTimeout(id);
+  }, [focusTaskId, focusEndsAt, focusTitle, focusAcknowledged]);
 
   /** Stopped and manual entries only — a live timer is shown, not totalled. */
   const totals = useMemo(() => {
@@ -73,10 +122,12 @@ export function useTime(onError: (message: string) => void): TimeApi {
           setTimerConflict({ taskId, runningTaskId: error.runningTaskId });
           return;
         }
+        // The start failed, so a session begun for it has nothing to attach to.
+        setSession((s) => (s && s.taskId === taskId ? null : s));
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setRunning],
   );
 
   const switchTimer = useCallback(
@@ -96,7 +147,7 @@ export function useTime(onError: (message: string) => void): TimeApi {
         onError((error as Error).message);
       }
     },
-    [onError],
+    [onError, setRunning],
   );
 
   const stopTimer = useCallback(async () => {
@@ -107,7 +158,7 @@ export function useTime(onError: (message: string) => void): TimeApi {
     } catch (error) {
       onError((error as Error).message);
     }
-  }, [onError]);
+  }, [onError, setRunning]);
 
   const addManualEntry = useCallback<TimeApi["addManualEntry"]>(
     async (input) => {
@@ -162,13 +213,46 @@ export function useTime(onError: (message: string) => void): TimeApi {
     [onError],
   );
 
+  const startFocus = useCallback<TimeApi["startFocus"]>(
+    async (task) => {
+      setSession(
+        startFocusSession(
+          task,
+          recordedMinutes(task.id),
+          new Date(),
+        ),
+      );
+      if (running?.taskId === task.id) return;
+      await startTimer(task.id);
+    },
+    [running, recordedMinutes, startTimer],
+  );
+
+  const extendFocus = useCallback(() => {
+    setSession((s) => (s ? extendFocusSession(s, new Date()) : s));
+  }, []);
+  const keepGoing = useCallback(() => {
+    setSession((s) => (s ? acknowledgeFocusSession(s) : s));
+  }, []);
+  const endFocus = useCallback(() => setSession(null), []);
+
+  const dismissTimerConflict = useCallback(() => {
+    setSession((s) => (s && s.taskId === timerConflict?.taskId ? null : s));
+    setTimerConflict(null);
+  }, [timerConflict]);
+
   return {
+    focus,
+    startFocus,
+    extendFocus,
+    keepGoing,
+    endFocus,
     timeEntries,
     setTimeEntries,
     running,
     setRunning,
     timerConflict,
-    dismissTimerConflict: useCallback(() => setTimerConflict(null), []),
+    dismissTimerConflict,
     recordedMinutes,
     entriesFor,
     startTimer,

@@ -25,7 +25,7 @@ export async function GET(request: Request): Promise<Response> {
       "Content-Type": "text/calendar; charset=utf-8",
       // Apple decides when to re-poll; nothing in between should answer for us.
       "Cache-Control": "no-store, max-age=0",
-      "Content-Disposition": 'inline; filename="tempo.ics"',
+      "Content-Disposition": 'inline; filename="doem.ics"',
     },
   });
 }

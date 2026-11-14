@@ -80,7 +80,7 @@ test("a timed event is labelled with its local start and end", () => {
   inTimezone("America/New_York", () => {
     const label = externalEventLabel(timed("2026-03-10T14:00:00.000Z", "2026-03-10T15:30:00.000Z"));
     // 10 March is already EDT (UTC-4), so 14:00Z is 10:00 local.
-    assert.equal(label, "10:00 AM – 11:30 AM");
+    assert.equal(label, "10:00 – 11:30");
   });
 });
 
@@ -88,7 +88,7 @@ test("a zero-length event is labelled with a single time", () => {
   inTimezone("America/New_York", () => {
     assert.equal(
       externalEventLabel(timed("2026-03-10T14:00:00.000Z", "2026-03-10T14:00:00.000Z")),
-      "10:00 AM",
+      "10:00",
     );
   });
 });

@@ -1,26 +1,34 @@
 "use client";
 
+import { useRef } from "react";
 import { useTasks } from "@/lib/store-context";
 import type { CalendarDay } from "@/lib/calendar";
-import { externalEventLabel } from "@/lib/external-events-view";
+import { layoutLanes, minutesToHHMM, plannedBlocks, trackedBlocks } from "@/lib/calendar-blocks";
+import { fmtDate, fmtTime, fmtWeekday } from "@/lib/format";
 import type { ExternalEvent } from "@/lib/icloud";
 import { useNow } from "@/lib/useNow";
 import { projectColorVar, type Task } from "@/lib/types";
-import { dayHeight, DAY_WINDOW_HOURS, HourGridBox, HourRail, instantToPx, timeToPx } from "../time/HourGrid";
+import Button from "../ui/Button";
+import Card from "../ui/Card";
+import { CAL_PX_PER_HOUR, dayHeight, HourRail, instantToPx, useScrollToHour } from "../time/HourGrid";
 
-const PX_PER_HOUR = 56;
-const WINDOW_HOURS = DAY_WINDOW_HOURS;
-const HEIGHT = dayHeight(PX_PER_HOUR);
+const PX = CAL_PX_PER_HOUR;
+const HEIGHT = dayHeight(PX);
+const SHORT_MIN = 42;
+
+function externalTime(event: ExternalEvent): string {
+  const hhmm = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  const from = fmtTime(hhmm(event.start));
+  return event.start === event.end ? from : `${from} to ${fmtTime(hhmm(event.end))}`;
+}
 
 /**
- * One wide day column with room for full event titles, rather than the
- * truncated chips the month/week grids use. Shares the hour-rail primitive
- * with the other two views, but NOT `useDragReschedule`: this view only ever
- * shows one day, so there is no second date to drop a marker onto — dragging
- * a task here could only ever no-op. Rescheduling stays available through
- * `onSelectDay` → `DayPanel`'s "Move date" control, the same accessible
- * equivalent touch and keyboard users already rely on for the month/week
- * grids' drag.
+ * One column of the week calendar (soft.html .calcard): same card, head cell,
+ * hour rail and blocks. NOT draggable: this view shows one day, so there is no
+ * second date to drop on. Rescheduling stays on the day panel's "Move date".
  */
 export default function DayGrid({
   day,
@@ -35,110 +43,159 @@ export default function DayGrid({
   externalByDate?: Map<string, ExternalEvent[]>;
   onSelectDay: (iso: string) => void;
 }) {
-  const { projects, openTask } = useTasks();
+  const { tasks, projects, openTask, timeEntries, running, settings } = useTasks();
   const now = useNow();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // A quarter hour of lead so the first hour label is not cut by the top edge.
+  const startHour = settings?.wakingStartHour;
+  useScrollToHour(bodyRef, typeof startHour === "number" ? Math.max(0, startHour - 0.25) : null, PX, day.iso);
 
-  const colorOf = (task: Task) => {
-    const color = projects.find((p) => p.id === task.projectId)?.color;
-    return color ? projectColorVar(color) : "var(--color-muted-foreground)";
+  const colorOf = (projectId: string | null | undefined) => {
+    const color = projects.find((p) => p.id === projectId)?.color;
+    return color ? projectColorVar(color) : "var(--color-ink-3)";
   };
 
   const isToday = day.iso === todayISO;
-  const nowOffset = isToday && now ? instantToPx(now.toISOString(), PX_PER_HOUR) : null;
+  const nowOffset = isToday && now ? instantToPx(now.toISOString(), PX) : null;
 
   const dayTasks = tasksByDate.get(day.iso) ?? [];
-  const timed = dayTasks.filter((t) => t.dueTime);
   const untimed = dayTasks.filter((t) => !t.dueTime);
   const dayExternal = externalByDate?.get(day.iso) ?? [];
   const timedExternal = dayExternal.filter((e) => !e.allDay);
   const allDayExternal = dayExternal.filter((e) => e.allDay);
 
+  const blocks = layoutLanes([
+    ...plannedBlocks(day.iso, dayTasks),
+    ...trackedBlocks(day.iso, timeEntries, running, tasks, now ?? new Date()),
+  ]);
+
+  const addOnThisDay = () => {
+    // The Day view's side rail already renders this day's add-task input;
+    // focus it rather than opening a second copy in a modal.
+    const input = document.querySelector<HTMLInputElement>("[data-day-add-input]");
+    if (input) input.focus();
+    else onSelectDay(day.iso);
+  };
+
   return (
-    <div>
+    <Card clip className="flex min-h-0 flex-1 flex-col">
+      <div className="relative grid shrink-0 grid-cols-[64px_1fr] shadow-[0_1px_0_var(--color-line)]">
+        <div />
+        <div className="px-2 py-3 text-center text-meta text-ink-3">
+          {fmtWeekday(day.iso, "short")}
+          <b
+            className={
+              isToday
+                ? "mx-auto mt-0.5 block size-8 rounded-full bg-accent text-title leading-8 text-accent-ink"
+                : "mt-0.5 block text-upnext text-ink"
+            }
+          >
+            {day.dayOfMonth}
+          </b>
+        </div>
+        <div className="absolute inset-y-0 right-3 flex items-center">
+          <Button variant="ghost" size="sm" icon="plus" onClick={addOnThisDay}>
+            Add a task on this day
+          </Button>
+        </div>
+      </div>
+
       {(untimed.length > 0 || allDayExternal.length > 0) && (
-        <div className="mb-3 space-y-1">
-          {untimed.map((task) => (
-            <button
-              key={task.id}
-              onClick={() => openTask(task.id)}
-              title={task.title}
-              className={`flex w-full items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-left text-sm hover:bg-muted ${
-                task.status === "done" ? "text-muted-foreground line-through" : ""
-              }`}
-            >
-              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colorOf(task) }} />
-              <span className="truncate">{task.title}</span>
-            </button>
-          ))}
-          {allDayExternal.map((event) => (
-            <div
-              key={event.id}
-              data-external-event
-              title={`${event.title} — All day (Apple Calendar)`}
-              className="truncate rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground"
-            >
-              {event.title}
-            </div>
-          ))}
+        <div className="grid shrink-0 grid-cols-[64px_1fr] shadow-[0_1px_0_var(--color-line)]">
+          <div />
+          <div className="flex max-h-28 flex-wrap content-start gap-1 overflow-y-auto p-1">
+            {untimed.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => openTask(task.id)}
+                aria-label={task.title}
+                title={task.title}
+                className={`cal-ev is-flow is-short w-auto! max-w-full! ${task.status === "done" ? "is-done" : ""}`}
+                style={{ "--c": colorOf(task.projectId) } as React.CSSProperties}
+              >
+                <span className="cal-ev-title">{task.title}</span>
+              </button>
+            ))}
+            {allDayExternal.map((event) => (
+              <div
+                key={event.id}
+                data-external-event
+                title={`${event.title}, all day (Apple Calendar)`}
+                className="cal-ev is-flow is-short is-external w-auto! max-w-full!"
+              >
+                <span className="cal-ev-title">{event.title}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <button
-        onClick={() => {
-          // Day view's side rail (app/calendar/page.tsx) already renders the
-          // exact same add-task input for this day inline — focus that one
-          // rather than opening a second copy in a modal behind it.
-          const input = document.querySelector<HTMLInputElement>("[data-day-add-input]");
-          if (input) input.focus();
-          else onSelectDay(day.iso);
-        }}
-        className="mb-2 text-left font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground"
-      >
-        Add a task on this day
-      </button>
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div className="relative grid grid-cols-[64px_1fr]">
+          <HourRail variant="calendar" windowStartHour={0} windowHours={24} height={HEIGHT} className="w-16 shrink-0" />
+          <div
+            role="group"
+            aria-label={`${fmtDate(day.iso, todayISO)} hours`}
+            className={`cal-col ${day.isWeekend ? "is-weekend" : ""}`}
+            style={{ height: HEIGHT }}
+          >
+            {blocks.map((b) => {
+              const top = (b.startMin / 60) * PX + 2;
+              const height = Math.max(18, ((b.endMin - b.startMin) / 60) * PX - 4);
+              const short = b.endMin - b.startMin < SHORT_MIN;
+              const time = `${fmtTime(minutesToHHMM(b.startMin))} to ${
+                b.running ? "now" : fmtTime(minutesToHHMM(b.endMin))
+              }`;
+              const cls = [
+                "cal-ev",
+                b.kind === "tracked" ? "is-tracked" : "",
+                short ? "is-short" : "",
+                b.done ? "is-done" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => b.taskId && openTask(b.taskId)}
+                  aria-label={b.kind === "tracked" ? `${b.title}, tracked ${time}` : b.title}
+                  title={b.title}
+                  className={cls}
+                  style={
+                    {
+                      "--c": colorOf(b.projectId),
+                      top,
+                      height,
+                      left: `calc(${b.lane} / ${b.lanes} * 100% + 4px)`,
+                      width: `calc(100% / ${b.lanes} - 8px)`,
+                      right: "auto",
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="cal-ev-title">{b.title}</span>
+                  {!short && <span className="cal-ev-time">{time}</span>}
+                </button>
+              );
+            })}
 
-      <div className="flex rounded-xl border border-border bg-card p-2">
-        <HourRail windowStartHour={0} windowHours={WINDOW_HOURS} height={HEIGHT} className="w-12 shrink-0 sm:w-14" />
-        <HourGridBox
-          windowHours={WINDOW_HOURS}
-          height={HEIGHT}
-          nowOffset={nowOffset}
-          aria-label={`${day.iso} hours`}
-        >
-          {timed.map((task) => {
-            const top = timeToPx(task.dueTime as string, PX_PER_HOUR);
-            return (
-              <button
-                key={task.id}
-                onClick={() => openTask(task.id)}
-                title={task.title}
-                className={`absolute inset-x-1 flex items-center gap-2 truncate rounded border-l-[3px] py-1 pl-2.5 pr-2 text-left text-xs font-medium text-foreground hover:opacity-85 ${
-                  task.status === "done" ? "opacity-55 line-through" : ""
-                }`}
-                style={{
-                  top,
-                  borderLeftColor: colorOf(task),
-                  backgroundColor: `color-mix(in srgb, ${colorOf(task)} 14%, var(--color-card))`,
-                }}
+            {timedExternal.map((event) => (
+              <div
+                key={event.id}
+                data-external-event
+                title={`${event.title}, ${externalTime(event)} (Apple Calendar)`}
+                className="cal-ev is-external is-short"
+                style={{ top: instantToPx(event.start, PX) + 2 }}
               >
-                <span className="truncate">{task.title}</span>
-              </button>
-            );
-          })}
+                <span className="cal-ev-title">{event.title}</span>
+              </div>
+            ))}
 
-          {timedExternal.map((event) => (
-            <div
-              key={event.id}
-              data-external-event
-              title={`${event.title} — ${externalEventLabel(event)} (Apple Calendar)`}
-              className="absolute inset-x-1 truncate rounded border border-dashed border-border bg-card px-2 py-1 text-xs text-muted-foreground"
-              style={{ top: instantToPx(event.start, PX_PER_HOUR) }}
-            >
-              {event.title}
-            </div>
-          ))}
-        </HourGridBox>
+            {nowOffset !== null && <div aria-label="Now" className="cal-nowline" style={{ top: nowOffset }} />}
+          </div>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }

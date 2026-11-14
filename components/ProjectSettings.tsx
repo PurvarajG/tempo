@@ -6,7 +6,10 @@ import { useTasks } from "@/lib/store-context";
 import { PROJECT_COLORS, projectColorVar, type Project } from "@/lib/types";
 import SidePanel from "./ui/SidePanel";
 import { Field, SavingInput } from "./ui/Field";
-import { labelClass } from "./ui/Field";
+import Toggle from "./ui/Toggle";
+import Dialog from "./ui/Dialog";
+import Button from "./ui/Button";
+import Caption from "./ui/Caption";
 import CategoryPicker from "./tracking/CategoryPicker";
 
 /**
@@ -25,6 +28,13 @@ export default function ProjectSettings({
   const [confirming, setConfirming] = useState(false);
 
   const affected = tasks.filter((t) => t.projectId === project.id).length;
+
+  const consequence =
+    affected === 0
+      ? "This project has no tasks."
+      : `${affected} ${affected === 1 ? "task keeps" : "tasks keep"} existing, but ${
+          affected === 1 ? "it moves" : "they move"
+        } to no project and lose their column.`;
 
   return (
     <SidePanel open onClose={onClose} title="Project settings">
@@ -46,13 +56,13 @@ export default function ProjectSettings({
                 onClick={() => updateProject(project.id, { color: c })}
                 aria-label={`Use colour ${c}`}
                 aria-pressed={project.color === c}
-                className="flex size-11 items-center justify-center rounded-full sm:size-8"
+                className="flex size-8 items-center justify-center rounded-full"
               >
                 <span
                   className="size-5 rounded-full"
                   style={{
                     background: preview,
-                    boxShadow: project.color === c ? `0 0 0 2px var(--color-background), 0 0 0 4px ${preview}` : undefined,
+                    boxShadow: project.color === c ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${preview}` : undefined,
                   }}
                 />
                 {/* Colour alone never carries the choice. */}
@@ -69,73 +79,56 @@ export default function ProjectSettings({
             value={project.defaultCategoryId}
             onChange={(categoryId) => updateProject(project.id, { defaultCategoryId: categoryId })}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-meta text-ink-3">
             Starting a timer on one of this project&apos;s tasks lands here instead of Focus Work.
           </p>
         </Field>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-row px-4 py-3 inset-ring-1 inset-ring-line">
           <div>
-            <p className="text-sm font-medium">Archived</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-body font-medium text-ink">Archived</p>
+            <p className="text-meta text-ink-3">
               Hides the project from the sidebar. Its tasks stay where they are.
             </p>
           </div>
-          <button
-            role="switch"
-            aria-checked={project.archived}
-            aria-label="Archived"
-            onClick={() => updateProject(project.id, { archived: !project.archived })}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-              project.archived ? "bg-accent" : "bg-border"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 size-5 rounded-full bg-card transition-all ${
-                project.archived ? "left-[22px]" : "left-0.5"
-              }`}
-            />
-          </button>
+          <Toggle
+            on={project.archived}
+            label="Archived"
+            onChange={() => updateProject(project.id, { archived: !project.archived })}
+          />
         </div>
 
-        <section className="space-y-2 rounded-xl border border-dashed border-border px-4 py-4">
-          <h3 className={labelClass}>Delete permanently</h3>
-          <p className="text-xs text-muted-foreground">
-            {affected === 0
-              ? "This project has no tasks."
-              : `${affected} ${affected === 1 ? "task keeps" : "tasks keep"} existing, but ${
-                  affected === 1 ? "it moves" : "they move"
-                } to no project and lose their column.`}
-          </p>
-          {confirming ? (
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                onClick={async () => {
-                  await deleteProject(project.id);
-                  onClose();
-                  router.push("/all");
-                }}
-                className="min-h-11 rounded-lg bg-muted px-3 py-2 text-sm font-medium hover:bg-border sm:min-h-9"
-              >
-                Yes, delete {project.name}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              className="pt-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              Delete this project
-            </button>
-          )}
+        <section className="space-y-2">
+          <Caption as="h3">Delete permanently</Caption>
+          <p className="text-meta text-ink-3">{consequence}</p>
+          <Button onClick={() => setConfirming(true)}>Delete this project</Button>
         </section>
       </div>
+
+      <Dialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        role="alertdialog"
+        title={`Delete ${project.name}?`}
+        description={consequence}
+        actions={
+          <>
+            <Button onClick={() => setConfirming(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              tone="danger"
+              onClick={async () => {
+                setConfirming(false);
+                await deleteProject(project.id);
+                onClose();
+                router.push("/all");
+              }}
+            >
+              Yes, delete {project.name}
+            </Button>
+          </>
+        }
+      />
     </SidePanel>
   );
 }
